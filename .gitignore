@@ -1,0 +1,16 @@
+# Environment / secrets — never commit values
+.env
+.env.*
+*.pem
+*.key
+
+# Vercel
+.vercel
+
+# Node
+node_modules/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.log
