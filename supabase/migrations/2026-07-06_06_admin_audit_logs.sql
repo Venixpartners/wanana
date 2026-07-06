@@ -1,0 +1,10 @@
+-- MILESTONE: Admin audit logs
+-- Applied to production via Supabase connector on 2026-07-06 (admin_audit_logs).
+-- Append-only audit_logs table records every sensitive action with actor,
+-- action, market, target, and JSON detail: market approval/rejection/close/
+-- cancel, verification start, outcome entry, settlement, wallet adjustment,
+-- dispute decision, admin role change. Logging is performed inside the admin
+-- RPCs themselves so it cannot be bypassed. Also adds admin_wallet_adjust
+-- (note required), admin_set_role (cannot change own role),
+-- admin_dispute_decide, and admin read views: admin_audit_recent,
+-- admin_ledger_recent, admin_users_recent, admin_comments_recent.
