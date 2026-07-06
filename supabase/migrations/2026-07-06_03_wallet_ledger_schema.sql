@@ -1,0 +1,10 @@
+-- MILESTONE: Wallet ledger (append-only, demo balances only)
+-- Applied to production via Supabase connector on 2026-07-06.
+-- Every wallet movement flows through ledger_post(): no balance change
+-- without a matching ledger entry. Table rejects UPDATE/DELETE by trigger.
+-- Transaction types: demo_credit, call_stake, pool_lock, pool_release,
+--   settlement_credit, refund, referral_bonus, admin_adjustment
+-- Columns: profile_id, user_id, transaction_type, amount, currency(NGN_DEMO),
+--   reference, related_market_id, status, created_at, created_by, notes
+-- (Full SQL as applied is recorded in the Supabase migration history:
+--  wallet_ledger_schema)
