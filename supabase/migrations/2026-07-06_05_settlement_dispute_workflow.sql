@@ -1,0 +1,9 @@
+-- MILESTONE: Settlement and 48-hour dispute window
+-- Applied to production via Supabase connector on 2026-07-06 (settlement_dispute_workflow).
+-- Flow: live/closed -> in_verification (admin_start_verification)
+--   -> dispute_window via admin_enter_outcome(outcome, resolution_source,
+--      resolution_note) which stamps dispute_window_ends_at = now() + 48h
+--   -> admin_settle_market refuses while the window is open, then pays
+--      winners pro-rata (5% platform fee, 1% creator reward) or refunds all
+--      stakes if the verified outcome had no winning calls.
+-- All credits post through the append-only wallet ledger with admin attribution.
