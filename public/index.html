@@ -14,7 +14,27 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+<script>
+/* Resilient loader: try jsdelivr, fall back to unpkg, else show a helpful
+   message instead of a blank page (extensions/filters sometimes block CDNs). */
+(function(){
+  function boot(){ if(window.__wananaBoot) window.__wananaBoot(); }
+  function fail(){
+    var el = document.getElementById("app");
+    if(el) el.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;color:#8E95BE;font-family:system-ui;line-height:1.7">Wanana could not load a required component.<br/>A browser extension or privacy shield may be blocking it.<br/>Allow this site in your blocker, or try another browser.</div>';
+  }
+  function load(src, onerr){
+    var s = document.createElement("script");
+    s.src = src; s.onload = boot; s.onerror = onerr;
+    document.head.appendChild(s);
+  }
+  window.addEventListener("DOMContentLoaded", function(){
+    load("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js", function(){
+      load("https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js", fail);
+    });
+  });
+})();
+</script>
 <style>
 :root{
   --indigo:#0B0E31;
@@ -174,6 +194,7 @@ nav.bottom button.on::before{content:"";position:absolute;top:0;left:50%;transfo
 <div id="app"></div>
 
 <script>
+window.__wananaBoot = function(){
 /* Public configuration. These are Supabase *publishable* values, safe to ship
    to browsers by design. Secret keys (service role, SMTP, payment keys) live
    only in server-side environment variables and never in this repo. */
@@ -839,6 +860,7 @@ sb.auth.onAuthStateChange(async (event, session)=>{
   }catch(e){}
   render();
 })();
+};
 </script>
 </body>
 </html>
