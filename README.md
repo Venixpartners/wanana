@@ -52,3 +52,4 @@ NEXT_PUBLIC_APP_URL=
 ```
 
 Responsible play: 18+ only. Play within your limit.
+Beta build 2026-07-07
