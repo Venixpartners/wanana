@@ -1,0 +1,8 @@
+-- MILESTONE: Market approval workflow
+-- Applied to production via Supabase connector on 2026-07-06 (market_approval_workflow).
+-- Status lifecycle: draft -> pending_review -> approved/rejected -> live ->
+--   closed -> in_verification -> dispute_window -> settled | cancelled
+-- New markets start at pending_review; only admins approve, reject, close,
+-- or cancel. Cancellation refunds every stake through the wallet ledger.
+-- Settlement metadata columns added: resolution_source, resolution_note,
+-- verification_started_at, dispute_window_ends_at, settled_at, settled_by.
