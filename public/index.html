@@ -217,7 +217,7 @@ const S = {
   markets: [], myCalls: [],
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [],
-  ledger: [], dispute: null, board: [], pay: null, refPrefill: "",
+  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false,
   admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all" },
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
@@ -365,6 +365,7 @@ function navButtons(){
 function render(){
   const app = document.getElementById("app");
   if(!S.session){ app.innerHTML = heroView(); return; }
+  if(S.recovery){ S.authMode = "newpass"; app.innerHTML = heroView(); return; }
   if(!S.profile){ app.innerHTML = profileSetupView(); return; }
   app.innerHTML = `
   <div class="shell">
@@ -436,6 +437,7 @@ function authBox(){
       ${authMsgHtml() || `<p class="authmsg">Set a new password for your Wanana account.</p>`}
       <div class="field"><label>New password</label><input id="a_pass" type="password" autocomplete="new-password" placeholder="At least 8 characters" /></div>
       <button class="cta" ${busy} onclick="doSetNewPassword()">Save new password</button>
+      ${S.recovery ? `<div class="alinks"><button class="alink" onclick="S.recovery=false;setMsg(null);render()">Skip, keep my current password</button></div>` : ``}
     </div>`;
   /* default: signin */
   return `
@@ -846,9 +848,9 @@ window.doSetNewPassword = async ()=>{
   const { error } = await sb.auth.updateUser({ password: pass });
   S.busy = false;
   if(error){ setMsg(error.message, true); return render(); }
-  S.authMode = "signin"; setMsg(null);
-  await loadProfile(); render();
-  toast("New password saved");
+  S.recovery = false; S.authMode = "signin"; setMsg(null);
+  await loadProfile(); await refreshCalls(); render();
+  toast("New password saved. You are signed in");
 };
 window.doProfileSetup = async ()=>{
   const u = ((document.getElementById("p_username")||{}).value || "").trim();
@@ -972,7 +974,7 @@ window.sendDispute = async ()=>{
 /* ---------------- Session lifecycle ---------------- */
 sb.auth.onAuthStateChange(async (event, session)=>{
   S.session = session;
-  if(event === "PASSWORD_RECOVERY"){ S.authMode = "newpass"; setMsg(null); render(); return; }
+  if(event === "PASSWORD_RECOVERY"){ S.recovery = true; S.authMode = "newpass"; setMsg(null); render(); return; }
   if(event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
     if(session){ await loadProfile(); await refreshCalls(); }
     render(); return;
