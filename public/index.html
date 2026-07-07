@@ -788,7 +788,7 @@ function helpSheet(){
       ${qa.map(([q,a])=>`<div style="margin-bottom:16px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;color:var(--glow);margin-bottom:5px">${q}</div>
         <div style="font-size:13px;line-height:1.65;color:var(--text)">${a}</div>
-      </div>`).join("")}
+      </div>`).join("") || "No audit records found."}
       <p class="note">More detail lives in <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a> \u2014 Terms, Privacy, Responsible Play, Market Rules, and Dispute &amp; Settlement Rules. 18+ only. Play within your limit.</p>
     </div></div>`;
 }
@@ -980,6 +980,9 @@ window.doSignOut = async ()=>{
 };
 
 /* ---------------- App actions ---------------- */
+window.S = S;
+window.render = render;
+window.setMsg = setMsg;
 window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null;
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();

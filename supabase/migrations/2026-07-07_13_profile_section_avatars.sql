@@ -1,0 +1,11 @@
+-- MILESTONE: Profile section (avatar, overview, KYC home)
+-- Applied to production via connector (profile_section_avatars).
+-- Storage: public "avatars" bucket; users can write only inside their own
+-- auth-uid folder (insert/update/delete policies); public read.
+-- profiles.avatar_url + profile_avatar_set(path) (validates caller owns the
+-- path). profile_overview() returns username, avatar, referral code, KYC
+-- status, member since, and performance stats. me() and leaderboard() now
+-- include avatar_url. Frontend: header avatar opens the new Profile page,
+-- which is the identity home: photo upload (<=2MB, png/jpg/webp), account
+-- info, stats, KYC verification card, referral card, sign out. Wallet is now
+-- purely money (balance, top-up, deposit/withdraw placeholders, ledger).

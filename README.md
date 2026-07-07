@@ -52,4 +52,19 @@ NEXT_PUBLIC_APP_URL=
 ```
 
 Responsible play: 18+ only. Play within your limit.
-Beta build 2026-07-07
+
+## Release notes: Public Demo MVP (7 July 2026)
+
+**What was fixed.** Admin dashboard tabs (Markets, Disputes, Ledger, Users, Comments, Audit log) did not respond to clicks. Root cause: when the app was wrapped in a loader function (the CDN-blocker fix), the state object `S` and `render()` stopped being globals, so every inline `onclick` referencing them threw a silent ReferenceError. This also silently broke home category chips, sheet background-close, the Deposit/Withdraw buttons and the Help buttons. Fix: `window.S`, `window.render` and `window.setMsg` are now exposed; an empty state was added to the Audit tab. All six tabs re-tested with data and with empty states; active-tab highlighting confirmed.
+
+**Files changed.** `public/index.html` (the fix), `README.md`, `.env.example` (new, names only).
+
+**Supabase SQL added/changed.** None for this fix. All migrations in `supabase/migrations/` are already applied to production; the folder is the historical record.
+
+**Upload to GitHub.** Replace the repository contents with this folder's contents (or upload the changed files only: `public/index.html`, `README.md`, `.env.example`). Commit message: `Fix admin dashboard tab navigation`.
+
+**Run in Supabase.** Nothing. The live database is current.
+
+**Environment variables.** See `.env.example`. Secrets live only in Supabase Edge Function secrets and Auth SMTP settings, never in this repository.
+
+**Manual tests for Paul.** After deploy, hard-refresh and: (1) open Admin and click all six tabs -- each loads and highlights; (2) tap a user in Users -- the audited detail sheet opens with KYC/role/wallet controls; (3) on Markets (home), tap a category chip -- the feed filters; (4) in Wallet, tap Deposit -- the demo-wallet placeholder sheet opens and closes on background tap; (5) tap Help & FAQ from the wallet note.
