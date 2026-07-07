@@ -220,7 +220,7 @@ const S = {
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [],
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null,
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all" },
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all", userDetail: null },
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
 const N = n => "\u20A6" + Number(n||0).toLocaleString("en-NG");
@@ -389,6 +389,7 @@ function render(){
     ${S.trade ? tradeSheet() : ""}
     ${S.dispute ? disputeSheet() : ""}
     ${S.pay ? paySheet() : ""}
+    ${S.admin.userDetail ? userDetailSheet() : ""}
     <nav class="bottom" aria-label="Main">${navButtons()}</nav>
   </div>`;
 }
@@ -720,9 +721,9 @@ const views = {
           <span><b style="color:${l.amount>0?"var(--teal)":"var(--coral)"}">${l.amount>0?"+":""}${N(l.amount)}</b> <span style="color:var(--slate)">by ${esc(l.created_by)}</span></span>
         </div>`).join("") || "No entries yet."}</div>` : ""}
       ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
-      <div class="card">${A.users.map(u=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap">
-          <span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span>
-          <b>${N(u.balance)}</b>
+      <div class="card">${A.users.map(u=>`<div onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;cursor:pointer">
+          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
+          <b>${N(u.balance)} ›</b>
         </div>`).join("") || "No users yet."}</div>` : ""}
       ${A.panel==="comments" ? `<div class="card">${A.comments.map(c=>`<div class="comment" style="border-bottom:1px solid var(--line);padding-bottom:8px"><b>${esc(c.username)}</b> on market #${c.market_id}: ${esc(c.body)}</div>`).join("") || "No comments yet."}</div>` : ""}
       ${A.panel==="audit" ? `<select onchange="S.admin.fA=this.value;renderMain()" style="margin-bottom:10px;width:auto">
@@ -776,6 +777,51 @@ function paySheet(){
         <button class="btn-no" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo wallet.')">Pay with Flutterwave</button>
       </div>
       <p class="note">Real-money features will only go live after licensing, KYC and payment review. Until then, every balance on Wanana is a demo credit balance (NGN_DEMO). Nothing here is real money.</p>
+    </div></div>`;
+}
+
+function userDetailSheet(){
+  const u = S.admin.userDetail;
+  const k = u.kyc_status || "not_started";
+  const kcol = {not_started:"var(--slate)",pending:"var(--glow)",verified:"var(--teal)",rejected:"var(--coral)"}[k];
+  const meAdminName = S.profile.username;
+  return `<div class="sheet-bg" style="z-index:60" onclick="S.admin.userDetail=null;render()">
+    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="User detail">
+      <div class="handle"></div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+        ${avatarHtml(null, u.username, 46)}
+        <div>
+          <div style="font-family:var(--disp);font-weight:700;font-size:18px">${esc(u.username)}${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}</div>
+          <div style="font-size:12px;color:var(--slate)">Joined ${esc(u.joined)} · ${N(u.balance)} · KYC <span style="color:${kcol}">${k}</span>${u.kyc_masked?" ("+esc(u.kyc_masked)+")":""}</div>
+        </div>
+      </div>
+
+      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:4px 0 8px">Admin actions</div>
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
+        ${k==="pending"||k==="not_started" ? `<button class="btn-yes" onclick="adminKyc('${esc(u.username)}','verified')">Verify KYC</button>` : ""}
+        ${k!=="rejected" ? `<button class="btn-no" onclick="adminKyc('${esc(u.username)}','rejected')">Reject KYC</button>` : ""}
+      </div>
+      <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
+        ${u.username!==meAdminName ? (u.is_admin
+            ? `<button class="btn-no" onclick="adminRole('${esc(u.username)}',false)">Remove admin</button>`
+            : `<button class="btn-yes" onclick="adminRole('${esc(u.username)}',true)">Make admin</button>`)
+          : `<span style="font-size:11.5px;color:var(--slate);padding:4px 2px">You cannot change your own role.</span>`}
+        <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust wallet</button>
+      </div>
+
+      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Recent calls</div>
+      ${(u.calls&&u.calls.length) ? u.calls.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
+        <span style="color:var(--slate);flex:1;min-width:0">${esc(c.question)}…</span>
+        <span style="color:${c.side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700">${c.side} ${N(c.amount)}</span>
+      </div>`).join("") : `<div style="color:var(--slate);font-size:12px">No calls yet.</div>`}
+
+      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Wallet ledger</div>
+      ${(u.ledger&&u.ledger.length) ? u.ledger.map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
+        <span style="color:var(--slate)">${esc(l.notes||l.type.replace(/_/g," "))} <span style="opacity:.6">· ${esc(l.at)}</span></span>
+        <b style="color:${l.amount>0?"var(--teal)":"var(--coral)"};white-space:nowrap">${l.amount>0?"+":""}${N(l.amount)}</b>
+      </div>`).join("") : `<div style="color:var(--slate);font-size:12px">No ledger entries.</div>`}
+
+      <p class="note">Every time this record is opened, it is written to the audit log. Wanana admins never sign in as a user.</p>
     </div></div>`;
 }
 
@@ -973,10 +1019,44 @@ window.kycSubmit = async ()=>{
   render();
   toast("Verification submitted. Status: pending review");
 };
+window.openUserDetail = async (username)=>{
+  const r = await rpc("admin_user_detail", { p_username: username });
+  if(r.error) return toast(r.error);
+  S.admin.userDetail = r; render();
+};
+window.adminRole = async (username, makeAdmin)=>{
+  if(!confirm((makeAdmin?"Make ":"Remove ")+username+(makeAdmin?" an admin?":" as admin?"))) return;
+  const r = await rpc("admin_set_role", { p_username: username, p_is_admin: makeAdmin });
+  if(r.error) return toast(r.error);
+  await loadAdmin();
+  const fresh = await rpc("admin_user_detail", { p_username: username });
+  S.admin.userDetail = fresh && !fresh.error ? fresh : null;
+  render(); toast((makeAdmin?"Granted admin. ":"Removed admin. ")+"Logged to the audit trail");
+};
+window.adminAdjust = async (username)=>{
+  const raw = prompt("Wallet adjustment for "+username+" in demo credits (use a negative number to deduct):");
+  if(raw===null) return;
+  const amt = parseInt(raw,10);
+  if(!amt || isNaN(amt)) return toast("Enter a whole number, e.g. 5000 or -2000");
+  const note = prompt("Reason for this adjustment (required, min 5 characters):");
+  if(note===null) return;
+  if(!note || note.trim().length<5) return toast("A clear reason is required");
+  const r = await rpc("admin_wallet_adjust", { p_username: username, p_amount: amt, p_note: note });
+  if(r.error) return toast(r.error);
+  await loadAdmin();
+  const fresh = await rpc("admin_user_detail", { p_username: username });
+  S.admin.userDetail = fresh && !fresh.error ? fresh : null;
+  render(); toast("Wallet adjusted. Logged to the audit trail");
+};
 window.adminKyc = async (u, status)=>{
   const r = await rpc("admin_kyc_set", { p_username: u, p_status: status });
   if(r.error) return toast(r.error);
-  await loadAdmin(); renderMain(); toast("KYC " + status + ". Logged to the audit trail");
+  await loadAdmin();
+  if(S.admin.userDetail && S.admin.userDetail.username===u){
+    const fresh = await rpc("admin_user_detail", { p_username: u });
+    S.admin.userDetail = fresh && !fresh.error ? fresh : null;
+  }
+  render(); toast("KYC " + status + ". Logged to the audit trail");
 };
 window.copyRef = ()=>{
   const link = "https://www.wanana.africa/?ref=" + (S.profile.referralCode||"");

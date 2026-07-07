@@ -1,0 +1,11 @@
+-- MILESTONE: Second admin + audited user-detail view
+-- Applied to production via connector (second_admin_and_user_detail).
+-- Detroyx (paulomugbe@gmail.com) granted admin, audited as founder-approved.
+-- Any admin can grant/revoke admin via admin_set_role (cannot change own
+-- role); tested both admins active, non-admins blocked. New audited action
+-- 'user_record_viewed'. admin_user_detail(username) returns a user's profile,
+-- KYC, recent calls and ledger, and WRITES AN AUDIT ENTRY on every view.
+-- Admins get oversight, never impersonation -- no admin can sign in as a user.
+-- Frontend (index.html): Admin > Users rows are tappable into a detail sheet
+-- with Verify/Reject KYC, Make/Remove admin, and Adjust wallet (mandatory
+-- reason) -- all through the existing audited RPCs.
