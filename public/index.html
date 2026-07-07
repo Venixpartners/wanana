@@ -377,7 +377,7 @@ function render(){
   app.innerHTML = `
   <div class="shell">
     <header class="bar"><div class="bar-in">
-      <span style="display:flex;align-items:center">${WORDMARK}</span>
+      <button onclick="go('home')" aria-label="Wanana home" style="display:flex;align-items:center;padding:0">${WORDMARK}</button>
       <div class="topnav" role="navigation" aria-label="Main">${navButtons()}</div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="balance"><span class="naira">\u20A6</span>${Number(S.profile.balance).toLocaleString("en-NG")}</div>
@@ -469,7 +469,7 @@ function heroView(){
     <div class="hero-in">
       <div class="hero-copy">
         <div class="skill-line">A game of skill</div>
-        <img class="hero-logo" src="/brand/wordmark.png" alt="wanana" />
+        <a href="/" aria-label="Wanana home"><img class="hero-logo" src="/brand/wordmark.png" alt="wanana" /></a>
         <h1>Africa argues about everything. <span class="em">Wanana pays whoever is right.</span></h1>
         <p class="lead">Post a question, make your call, and get paid when you call it right. The crowd sets the price. Skill gets paid. Every result is verified.</p>
         ${authBox()}
@@ -489,7 +489,7 @@ function profileSetupView(){
     <div class="hero-in">
       <div class="hero-copy">
         <div class="skill-line">One last step</div>
-        <img class="hero-logo" src="/brand/wordmark.png" alt="wanana" />
+        <a href="/" aria-label="Wanana home"><img class="hero-logo" src="/brand/wordmark.png" alt="wanana" /></a>
         <h1>Claim your <span class="em">Oracle name</span>.</h1>
         <p class="lead">This is the name the crowd sees on your calls, your markets, and the leaderboard. Choose well.</p>
         <div class="authbox">
