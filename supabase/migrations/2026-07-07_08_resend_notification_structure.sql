@@ -1,0 +1,21 @@
+-- MILESTONE: Resend email notification structure
+-- Applied to production via Supabase connector on 2026-07-07
+-- (resend_notification_structure + notify_call_placed).
+--
+-- Outbox pattern:
+-- * notifications table: profile, email, type, branded subject/body_html,
+--   related market, status queued/sent/failed/skipped, attempts, error.
+-- * profiles.email_opt_out respected at enqueue time.
+-- * notify_enqueue(profile, type, market, payload) composes branded copy for:
+--   welcome, market_created, market_approved, call_placed,
+--   market_verification, dispute_window_opened, market_settled,
+--   wallet_credited, payout_processed, referral_reward, kyc_update.
+-- * Enqueue is woven into: profile_setup, market_create, wallet_top_up,
+--   call_place, admin_approve_market, admin_start_verification,
+--   admin_enter_outcome (all participants), admin_settle_market
+--   (winners + creator + refunds).
+-- * notify_claim_batch(limit) atomically claims queued rows for sending.
+--
+-- Edge function "notify" (supabase/functions/notify/index.ts) drains the
+-- queue via Resend. Inert until RESEND_API_KEY (and optionally
+-- RESEND_FROM_EMAIL) are set in Edge Function secrets. No secrets in code.
