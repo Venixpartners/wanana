@@ -63,6 +63,12 @@ input,select,textarea{font-family:inherit;width:100%;padding:13px 14px;border-ra
 img.logo{display:block;height:24px;width:auto}
 .avatar{border-radius:50%;background:var(--card);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;color:var(--glow);overflow:hidden;flex-shrink:0}
 .avatar img{width:100%;height:100%;object-fit:cover;display:block}
+.win-bg{position:fixed;inset:0;background:rgba(5,7,26,.82);z-index:80;display:flex;align-items:center;justify-content:center;padding:20px}
+.win-card{position:relative;background:var(--card);border:1px solid var(--line);border-top:4px solid var(--orange);border-radius:12px;max-width:420px;width:100%;padding:30px 24px;text-align:center;overflow:hidden;animation:winpop .35s cubic-bezier(.2,1.4,.4,1)}
+@keyframes winpop{from{transform:scale(.85);opacity:0}to{transform:scale(1);opacity:1}}
+.confetti{position:absolute;top:-12px;font-size:15px;animation:confall 2.4s ease-in infinite}
+@keyframes confall{0%{transform:translateY(-10px) rotate(0deg);opacity:1}100%{transform:translateY(340px) rotate(320deg);opacity:0}}
+.win-amt{font-family:var(--disp);font-weight:700;font-size:38px;color:var(--teal);margin:8px 0 2px}
 
 /* ---------- App shell ---------- */
 .shell{display:flex;flex-direction:column;padding-bottom:84px}
@@ -219,7 +225,7 @@ const S = {
   markets: [], myCalls: [],
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [],
-  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false,
+  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
   admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all", userDetail: null },
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
@@ -393,6 +399,7 @@ function render(){
     ${S.pay ? paySheet() : ""}
     ${S.admin.userDetail ? userDetailSheet() : ""}
     ${S.help ? helpSheet() : ""}
+    ${S.wins.length ? victorySheet() : ""}
     <nav class="bottom" aria-label="Main">${navButtons()}</nav>
   </div>`;
 }
@@ -777,6 +784,28 @@ function detailSheet(){
     </div></div>`;
 }
 
+function victorySheet(){
+  const wins = S.wins;
+  const total = wins.reduce((s,w)=>s+Number(w.amount),0);
+  const lastId = Math.max(...wins.map(w=>Number(w.ledger_id)));
+  const onlyCreator = wins.every(w=>w.kind==="creator");
+  const bits = ["\u{1F389}","\u{2728}","\u{1F3C6}","\u{1F525}","\u{2B50}","\u{1F389}","\u{2728}","\u{1F3C6}"];
+  const conf = bits.map((b,i)=>`<span class="confetti" style="left:${8+i*12}%;animation-delay:${(i*0.28).toFixed(2)}s">${b}</span>`).join("");
+  return `<div class="win-bg" onclick="winsSeen(${lastId})">
+    <div class="win-card" onclick="event.stopPropagation()">
+      ${conf}
+      <div style="font-family:var(--disp);font-weight:700;font-size:22px">${onlyCreator ? "Your market paid out" : "You called it"} \u{1F389}</div>
+      <div class="win-amt">+\u20A6${total.toLocaleString("en-NG")}</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your wallet" : "landed in your wallet"}</div>
+      ${wins.map(w=>`<div style="text-align:left;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)">
+        <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
+        <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
+      </div>`).join("")}
+      <button class="cta" style="margin-top:16px" onclick="winsSeen(${lastId})">Sweet</button>
+      <p class="note" style="margin-bottom:0">Every settlement is verified against a public source, with a 48 hour dispute window first.</p>
+    </div></div>`;
+}
+
 function helpSheet(){
   const qa = [
     ["What is Wanana?",
@@ -997,6 +1026,7 @@ window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null;
   if(t==="calls"||t==="insights") await refreshCalls();
   if(t==="insights") await loadBoard();
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
+  if(t==="home" || t==="wallet" || t==="calls") checkWins();
   if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null; }
   if(t==="admin") await loadAdmin();
   render(); };
@@ -1034,6 +1064,16 @@ window.postComment = async ()=>{
   const r = await rpc("comment_add", { p_market_id:S.detail.id, p_body:b });
   if(r.error) return toast(r.error);
   await loadComments(S.detail.id); render();
+};
+window.checkWins = async ()=>{
+  if(!S.session || !S.profile) return;
+  const w = await rpc("wins_unseen");
+  if(Array.isArray(w) && w.length){ S.wins = w; render(); }
+};
+window.winsSeen = async (lastId)=>{
+  S.wins = []; render();
+  await rpc("wins_mark_seen", { p_last_id: lastId });
+  await loadProfile(); render();
 };
 window.uploadAvatar = async (input)=>{
   const file = input.files && input.files[0];
@@ -1171,7 +1211,7 @@ sb.auth.onAuthStateChange(async (event, session)=>{
   S.session = session;
   if(event === "PASSWORD_RECOVERY"){ S.recovery = true; S.authMode = "newpass"; setMsg(null); render(); return; }
   if(event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
-    if(session){ await loadProfile(); await refreshCalls(); }
+    if(session){ await loadProfile(); await refreshCalls(); checkWins(); }
     render(); return;
   }
   if(event === "SIGNED_OUT"){ S.profile = null; S.myCalls = []; render(); }
@@ -1184,7 +1224,7 @@ sb.auth.onAuthStateChange(async (event, session)=>{
     const { data } = await sb.auth.getSession();
     S.session = data ? data.session : null;
     await loadMarkets();
-    if(S.session){ await loadProfile(); await refreshCalls(); }
+    if(S.session){ await loadProfile(); await refreshCalls(); checkWins(); }
   }catch(e){}
   render();
 })();

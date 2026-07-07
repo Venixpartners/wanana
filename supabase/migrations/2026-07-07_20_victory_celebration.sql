@@ -1,0 +1,14 @@
+-- MILESTONE: Victory celebration
+-- Applied to production via connector (victory_celebration + column fix).
+-- profiles.last_win_seen_id tracks the newest settlement credit the user
+-- has been congratulated for (backfilled so old settlements do not
+-- retro-celebrate). wins_unseen() returns up to 5 uncelebrated settlement
+-- credits (win vs creator reward, amount, question, verified outcome);
+-- wins_mark_seen(id) advances the pointer monotonically (cannot rewind,
+-- so a win can never celebrate twice; works across devices).
+-- Frontend: on sign-in and on Home/Wallet/Your-calls visits, unseen wins
+-- open a branded victory card: confetti animation, "You called it" (or
+-- "Your market paid out" for creator rewards), the total in big teal, a
+-- line per settlement with the verified outcome, and the reminder that
+-- every settlement is source-verified behind a 48 hour dispute window.
+-- Dismissing marks seen and refreshes the balance.
