@@ -1,0 +1,28 @@
+-- MILESTONE: Automated Market Review Engine (v1)
+-- Applied to production via connector (automated_market_review_engine +
+-- review_engine_array_fix + review_engine_categories_and_cap).
+-- New tables (all RLS-enabled, zero API grants): market_review_config
+-- (single row, kill switch auto_market_approval_enabled + thresholds 0-20
+-- low / 21-60 medium / 61-100 high), prohibited_terms (hard / financial /
+-- sensitive), market_reviews (score, level, decision, triggered_rules,
+-- reason, engine version, similar-market match via pg_trgm).
+-- run_market_review(market) executes inside market_create: financial
+-- firewall and hard-prohibited terms score 100 (auto-reject with specific
+-- user messages); sensitive terms cap at 45 (admin review, never
+-- auto-reject alone); vague sources +30; unknown category +30; date sanity
+-- +15/+30; exact duplicates reject with the duplicate message; similar
+-- markets (trgm >= 0.62) +35 to admin review. Low risk -> live
+-- immediately; medium -> stays pending_review (existing admin queue);
+-- high -> rejected. Kill switch OFF routes everything to admin review.
+-- Every engine decision is audit-logged as system:review-engine; config
+-- changes and overrides (mandatory note, pending/rejected only) audited.
+-- markets.category constraint extended to the full allowed list.
+-- admin_markets returns review data and rejected rows. Calls on live
+-- markets untouched (calls never required approval).
+-- Frontend: full category list on create; engine message on submit; admin
+-- queue shows RISK score/level/reason/similar-market, Override->approve on
+-- rejected markets, and the Auto-review ON/OFF toggle.
+-- Tested: 4/4 auto-approve, 6/6 auto-reject with correct messages, 5/5 to
+-- admin review, kill switch, override, non-admin blocked from config and
+-- reviews, feed shows only live, calls+ledger regression, all engine
+-- decisions audited.

@@ -258,9 +258,11 @@ async function loadLedger(){
 }
 async function loadAdmin(){
   if(!S.profile || !S.profile.isAdmin) return;
-  const [m, d, l, u, c, a] = await Promise.all([
+  const [m, d, l, u, c, a, rc] = await Promise.all([
     rpc("admin_markets"), rpc("admin_disputes"), rpc("admin_ledger_recent"),
-    rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent")]);
+    rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent"),
+    rpc("admin_review_config_get")]);
+  S.admin.reviewCfg = rc && !rc.error ? rc : null;
   S.admin.markets  = Array.isArray(m) ? m : [];
   S.admin.disputes = Array.isArray(d) ? d : [];
   S.admin.ledger   = Array.isArray(l) ? l : [];
@@ -560,7 +562,7 @@ const views = {
       <h2 class="tabtitle">Create a market</h2>
       <p class="sub">Post any real world yes or no scenario. Our team reviews every market before it goes live. Creators earn 1% of the settled pool.</p>
       <div class="field"><label>Your question</label><input id="cq" maxlength="200" placeholder="Will Davido headline the O2 Arena in 2026?" /></div>
-      <div class="field"><label>Category</label><select id="cc">${CATS.filter(c=>c!=="All").map(c=>`<option>${c}</option>`).join("")}</select></div>
+      <div class="field"><label>Category</label><select id="cc">${["Entertainment","Culture","Sports","Public events","Creator trends","Music awards","Tech","Lifestyle","African social conversations","Politics"].map(c=>`<option>${c}</option>`).join("")}</select></div>
       <div class="field"><label>Resolution date</label><input id="ce" placeholder="Dec 31, 2026" /></div>
       <div class="field"><label>Resolution source</label><input id="cs" placeholder="CAF website, INEC results, Grammy.com" /></div>
       <button class="cta" onclick="submitMarket()">Launch market</button>
@@ -689,11 +691,18 @@ const views = {
       if(m.status==="in_verification"){ acts.push(`<button class="btn-yes" onclick="adminOutcome(${m.id},'YES')">Outcome YES</button>`);
         acts.push(`<button class="btn-no" onclick="adminOutcome(${m.id},'NO')">Outcome NO</button>`); }
       if(m.status==="dispute_window"){ acts.push(`<button class="btn-yes" onclick="adminAct('admin_settle_market',${m.id})">Settle now</button>`); }
-      if(m.status!=="dispute_window") acts.push(`<button class="btn-no" style="flex:0 0 auto;padding:11px 14px" onclick="adminCancel(${m.id})">Cancel</button>`);
+      if(m.status==="rejected"){ acts.push(`<button class="btn-yes" onclick="reviewOverride(${m.id},true)">Override \u2192 approve</button>`); }
+      if(m.status!=="dispute_window" && m.status!=="rejected") acts.push(`<button class="btn-no" style="flex:0 0 auto;padding:11px 14px" onclick="adminCancel(${m.id})">Cancel</button>`);
       return `<div class="card" style="margin-bottom:12px">
         <div class="meta"><span class="cat" style="color:${badge(m.status)}">${m.status.replace(/_/g," ").toUpperCase()}</span>
           <span class="cat">${m.category} · by ${esc(m.creator)}</span></div>
         <div class="q" style="font-size:15px">${esc(m.question)}</div>
+        ${m.risk_level ? `<div style="font-size:11.5px;margin-bottom:6px">
+          <span class="cat" style="color:${m.risk_level==="low"?"var(--teal)":m.risk_level==="medium"?"var(--glow)":"var(--coral)"}">RISK ${m.risk_score} \u00b7 ${m.risk_level.toUpperCase()}</span>
+          <span class="cat" style="color:var(--slate)">engine: ${esc((m.review_decision||"").replace(/_/g," "))}</span>
+          ${m.review_reason ? `<span style="color:var(--slate)"> \u00b7 ${esc(m.review_reason)}</span>` : ""}
+          ${m.matched_market_id ? `<span style="color:var(--glow)"> \u00b7 similar to market #${m.matched_market_id}</span>` : ""}
+        </div>` : ""}
         <div style="font-size:12px;color:var(--slate);margin-bottom:10px">
           Pool ${N(m.yes_pool+m.no_pool)} · source: ${esc(m.source)}
           ${m.status==="dispute_window" ? ` · proposed <b style="color:var(--text)">${m.proposed_outcome}</b> via ${esc(m.resolution_source||"")} · window ends ${new Date(m.dispute_window_ends_at).toLocaleString()} · disputes: ${m.disputes}` : ""}
@@ -707,7 +716,7 @@ const views = {
       <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
-          ${["all","pending_review","live","closed","in_verification","dispute_window"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
+          ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
           <select onchange="S.admin.fC=this.value;renderMain()" style="width:auto;padding:7px 12px;border-radius:999px;font-size:13px">
             ${["all"].concat(CATS.slice(1)).map(c=>`<option ${A.fC===c?"selected":""}>${c}</option>`).join("")}
           </select>
@@ -1014,8 +1023,10 @@ window.submitMarket = async ()=>{
   if(!s.trim()) return toast("Name a public source that settles it");
   const r = await rpc("market_create", { p_question:q, p_category:c, p_ends_on:e, p_source:s });
   if(r.error) return toast(r.error);
-  await loadMarkets(); S.tab="home"; render();
-  toast("Submitted. Your market goes live once our team approves it");
+  await loadMarkets();
+  if(r.decision === "auto_approved"){ S.tab="home"; render(); }
+  else { render(); }
+  toast(r.message || "Submitted. Your market goes live once our team approves it");
 };
 window.postComment = async ()=>{
   const b = document.getElementById("cbody").value;
@@ -1102,6 +1113,25 @@ window.topUp = async ()=>{
   S.profile.balance = r.balance; render(); toast("\u20A650,000 free credits added");
 };
 
+window.toggleReviewEngine = async ()=>{
+  const cfg = S.admin.reviewCfg; if(!cfg) return;
+  const next = !cfg.enabled;
+  if(!confirm(next ? "Turn the auto review engine ON? Low-risk markets will go live without admin approval."
+                   : "Turn the auto review engine OFF? Every new market will wait for admin review.")) return;
+  const r = await rpc("admin_review_config_set", { p_enabled: next, p_low_max: null, p_medium_max: null });
+  if(r.error) return toast(r.error);
+  await loadAdmin(); renderMain();
+  toast(next ? "Auto review is ON. Logged to the audit trail" : "Auto review is OFF. Everything goes to admin review");
+};
+window.reviewOverride = async (id, approve)=>{
+  const note = prompt("Reason for overriding the engine's decision (required, min 5 characters):");
+  if(note===null) return;
+  if(!note || note.trim().length<5) return toast("A clear reason is required");
+  const r = await rpc("admin_review_override", { p_market_id: id, p_approve: approve, p_note: note });
+  if(r.error) return toast(r.error);
+  await loadAdmin(); renderMain();
+  toast("Override recorded. Logged to the audit trail");
+};
 window.adminAct = async (fn, id)=>{
   const args = fn==="admin_dispute_decide" ? { p_dispute_id: id } : { p_market_id: id };
   const r = await rpc(fn, args);
