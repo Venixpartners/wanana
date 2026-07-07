@@ -1,0 +1,8 @@
+-- MILESTONE: Public demo sprint cleanup
+-- Applied to production via connector (drop_deprecated_demo_functions).
+-- Dropped the eight pre-auth demo-era functions (get_me, register_user,
+-- place_call, demo_top_up, create_market, get_my_calls, add_comment,
+-- current_profile). Verified zero references in the deployed frontend, and
+-- a full 15-step lifecycle regression passed after removal: signup, feed,
+-- market create, approve, call, ledger, comment, verification, outcome,
+-- dispute, dispute review, settle, audit.

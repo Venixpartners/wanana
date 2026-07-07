@@ -1,0 +1,11 @@
+-- MILESTONE: Settlement automation
+-- Applied to production via connector (settlement_automation + type fix).
+-- pg_cron installed. settle_market_internal(market, actor) is the shared
+-- settlement core (payout math, ledger, notifications, audit) used by both
+-- admin_settle_market ('admin:<name>') and auto_settle_expired()
+-- ('system:auto'). auto_settle_expired() sweeps up to 20 markets whose
+-- 48-hour dispute window has expired, SKIPPING any with an open dispute
+-- (those wait for a human decision), and is scheduled as cron job
+-- 'wanana-auto-settle' every 10 minutes. Tested: expired market settles as
+-- system:auto with audit row; disputed market held; open-window market
+-- untouched.

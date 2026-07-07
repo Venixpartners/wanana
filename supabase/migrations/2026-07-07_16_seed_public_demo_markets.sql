@@ -1,0 +1,6 @@
+-- MILESTONE: Public demo seed markets
+-- Applied to production via connector. Eight fresh, dated markets across
+-- Entertainment, Sports, Culture and Tech, each with a clear public
+-- resolution source and resolution date, created by 'wanana' and live.
+-- No forex, stock, crypto, securities or investment questions. Pools start
+-- at zero so demo users move the crowd price themselves.

@@ -1,0 +1,8 @@
+-- MILESTONE: Resend notification sender ACTIVATED
+-- Applied to production via connector (schedule_notification_sender).
+-- RESEND_API_KEY + RESEND_FROM_EMAIL ("Wanana <no-reply@mail.wanana.africa>")
+-- set as Edge Function secrets (dashboard; never in code). pg_net installed.
+-- First live drain: 5 queued emails sent, 0 failed (welcome x2, call
+-- confirmation x2, referral reward). Cron job 'wanana-notify-sender' now
+-- invokes the notify function every 2 minutes; failures are recorded on the
+-- notification row with status='failed' and the error message.
