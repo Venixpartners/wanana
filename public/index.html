@@ -61,6 +61,8 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
 input,select,textarea{font-family:inherit;width:100%;padding:13px 14px;border-radius:8px;border:1px solid var(--line);background:var(--card);color:var(--text);font-size:14px}
 ::placeholder{color:var(--slate);opacity:.75}
 img.logo{display:block;height:24px;width:auto}
+.avatar{border-radius:50%;background:var(--card);border:1px solid var(--line);display:inline-flex;align-items:center;justify-content:center;font-family:var(--disp);font-weight:700;color:var(--glow);overflow:hidden;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover;display:block}
 
 /* ---------- App shell ---------- */
 .shell{display:flex;flex-direction:column;padding-bottom:84px}
@@ -217,7 +219,7 @@ const S = {
   markets: [], myCalls: [],
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [],
-  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false,
+  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null,
   admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all" },
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
@@ -225,6 +227,11 @@ const N = n => "\u20A6" + Number(n||0).toLocaleString("en-NG");
 const esc = s => String(s).replace(/[&<>\"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const yesPct = m => { const t = m.yes_pool + m.no_pool; return t === 0 ? 50 : Math.round(m.yes_pool*100/t); };
 const WORDMARK = `<img class="logo" src="/brand/wordmark.png" alt="wanana" />`;
+function avatarHtml(url, name, size){
+  const s = `width:${size}px;height:${size}px;font-size:${Math.round(size*0.42)}px`;
+  return url ? `<span class="avatar" style="${s}"><img src="${esc(url)}" alt="" /></span>`
+             : `<span class="avatar" style="${s}">${esc((name||"?").charAt(0).toUpperCase())}</span>`;
+}
 
 async function rpc(fn, args){
   const { data, error } = await sb.rpc(fn, args || {});
@@ -242,7 +249,7 @@ async function loadComments(id){
 async function loadProfile(){
   if(!S.session){ S.profile = null; return; }
   const me = await rpc("me");
-  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started" } : null;
+  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
 }
 async function loadLedger(){
   if(!S.session) return;
@@ -374,6 +381,7 @@ function render(){
       <div class="topnav" role="navigation" aria-label="Main">${navButtons()}</div>
       <div style="display:flex;align-items:center;gap:10px">
         <div class="balance"><span class="naira">\u20A6</span>${Number(S.profile.balance).toLocaleString("en-NG")}</div>
+        <button onclick="go('profile')" aria-label="Your profile" style="padding:0;border-radius:50%">${avatarHtml(S.profile.avatarUrl, S.profile.username, 34)}</button>
       </div>
     </div></header>
     <main id="main">${views[S.tab]()}</main>
@@ -536,6 +544,7 @@ const views = {
       ${S.board.length===0 ? `<div class="empty">The leaderboard fills up as markets settle. Be early.</div>` :
         S.board.map((o,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px">
           <span style="font-family:var(--disp);font-weight:700;color:${i===0?"var(--orange)":i<3?"var(--glow)":"var(--slate)"};min-width:26px">#${i+1}</span>
+          ${avatarHtml(o.avatar_url, o.username, 28)}
           <span style="flex:1;min-width:0"><b style="color:var(--text)">${esc(o.username)}</b>
             ${o.rank_tier==="Oracle" ? ` <span class="cat" style="color:var(--orange)">ORACLE</span>` : ""}
             <span style="color:var(--slate)"> · ${o.wins}/${o.settled_calls} settled · ${o.accuracy}% read rate${o.best_streak>1?` · streak ${o.best_streak}`:""}${o.top_category?` · ${o.top_category}`:""} · ${o.total_calls} calls</span></span>
@@ -596,32 +605,7 @@ const views = {
         <button class="btn-yes" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="S.pay='deposit';render()">Deposit</button>
         <button class="btn-no" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="S.pay='withdraw';render()">Withdraw</button>
       </div>
-      <div style="margin-top:14px"><button class="signout" onclick="doSignOut()">Sign out of Wanana</button></div>
-      <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:14px">
-        <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Invite your people</div>
-        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20A65,000 demo credits land in your wallet.</div>
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-          <span style="font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.18em;color:var(--glow)">${esc(S.profile.referralCode||"")}</span>
-          <button class="chip" onclick="copyRef()">Copy invite link</button>
-        </div>
-      </div>
-      ${(()=>{
-        const k = S.profile.kycStatus || "not_started";
-        const col = {not_started:"var(--slate)",pending:"var(--glow)",verified:"var(--teal)",rejected:"var(--coral)"}[k];
-        const label = {not_started:"Not started",pending:"Pending review",verified:"Verified",rejected:"Rejected"}[k];
-        return `<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:14px">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-          <div style="font-family:var(--disp);font-weight:600;font-size:14px">Identity verification</div>
-          <span class="cat" style="color:${col}">${label}</span>
-        </div>
-        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${k==="not_started"||k==="rejected"?"12px":"0"}">Verification will be required before real-money features. During open beta we keep only the last 4 digits of your ID number, never the full number.</div>
-        ${k==="not_started"||k==="rejected" ? `
-          <div style="display:flex;gap:8px;margin-bottom:10px">
-            <select id="kyc_type" style="flex:0 0 110px"><option>BVN</option><option>NIN</option></select>
-            <input id="kyc_num" inputmode="numeric" maxlength="11" placeholder="Your 11-digit number" oninput="this.value=this.value.replace(/\\D/g,'')" />
-          </div>
-          <button class="cta" onclick="kycSubmit()">Submit for verification</button>` : ``}
-      </div>`;})()}
+      <p class="note">Your photo, identity verification and referral code now live in your <button class="alink" onclick="go('profile')">Profile</button>.</p>
       <div style="margin-top:18px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:10px">Recent activity</div>
         ${S.ledger.length===0 ? `<div class="empty">Your wallet history shows up here.</div>` :
@@ -633,6 +617,56 @@ const views = {
       <p class="note">Every movement on your wallet is recorded in an append-only ledger. Demo credits only during open beta.</p>
       <p class="note">Wanana is in open beta and runs on free play credits while our licence application is in progress. Cash funding via Paystack and Flutterwave, plus USSD, with KYC by BVN or NIN, switches on at launch.</p>
       <p class="note">Play within your limit. Take a break anytime. 18+ only. <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></p>
+    </div>`;
+  },
+  profile(){
+    const o = S.overview;
+    if(!o) return `<div class="pad narrow"><div class="empty">Loading your profile\u2026</div></div>`;
+    const k = o.kyc_status || "not_started";
+    const kcol = {not_started:"var(--slate)",pending:"var(--glow)",verified:"var(--teal)",rejected:"var(--coral)"}[k];
+    const klabel = {not_started:"Not started",pending:"Pending review",verified:"Verified",rejected:"Rejected"}[k];
+    return `<div class="pad narrow">
+      <h2 class="tabtitle">Profile</h2>
+      <div style="background:var(--card);border:1px solid var(--line);border-top:3px solid var(--orange);border-radius:8px;padding:20px;margin-bottom:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
+        ${avatarHtml(o.avatar_url, o.username, 72)}
+        <div style="flex:1;min-width:180px">
+          <div style="font-family:var(--disp);font-weight:700;font-size:22px">${esc(o.username)}</div>
+          <div style="font-size:12px;color:var(--slate);margin-top:2px">${S.session && S.session.user ? esc(S.session.user.email||"") : ""} \u00b7 Oracle since ${esc(o.member_since)}</div>
+          <div style="margin-top:10px">
+            <label class="chip" style="cursor:pointer;display:inline-block">Change photo
+              <input id="av_file" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)" /></label>
+          </div>
+        </div>
+      </div>
+      <div class="statgrid">
+        <div class="stat"><div class="l">Calls made</div><div class="v">${o.total_calls}</div></div>
+        <div class="stat"><div class="l">Markets created</div><div class="v">${o.markets_created}</div></div>
+        <div class="stat"><div class="l">Settled</div><div class="v">${o.settled_calls}</div></div>
+        <div class="stat"><div class="l">Nice reads</div><div class="v" style="color:var(--teal)">${o.wins}</div></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-family:var(--disp);font-weight:600;font-size:14px">Identity verification</div>
+          <span class="cat" style="color:${kcol}">${klabel}</span>
+        </div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${k==="not_started"||k==="rejected"?"12px":"0"}">${k==="verified" ? `Verified${o.kyc_masked?" \u00b7 "+esc(o.kyc_masked):""}. Full identity verification arrives with licensing, before any real-money features.` : k==="pending" ? `We are reviewing your details${o.kyc_masked?" ("+esc(o.kyc_masked)+")":""}. You will get an email when it is done.` : `Verification will be required before real-money features. During open beta we keep only the last 4 digits of your ID number, never the full number.`}</div>
+        ${k==="not_started"||k==="rejected" ? `
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <select id="kyc_type" style="flex:0 0 110px"><option>BVN</option><option>NIN</option></select>
+            <input id="kyc_num" inputmode="numeric" maxlength="11" placeholder="Your 11-digit number" oninput="this.value=this.value.replace(/\\D/g,'')" />
+          </div>
+          <button class="cta" onclick="kycSubmit()">Submit for verification</button>` : ``}
+      </div>
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
+        <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Invite your people</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20A65,000 demo credits land in your wallet.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.18em;color:var(--glow)">${esc(o.referral_code||"")}</span>
+          <button class="chip" onclick="copyRef()">Copy invite link</button>
+        </div>
+      </div>
+      <button class="signout" onclick="doSignOut()">Sign out of Wanana</button>
+      <p class="note">Need help or want your data deleted? See <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a>.</p>
     </div>`;
   },
   admin(){
@@ -860,7 +894,7 @@ window.doProfileSetup = async ()=>{
   const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null });
   S.busy = false;
   if(r.error){ setMsg(r.error, true); return render(); }
-  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started" };
+  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
   setMsg(null); await loadMarkets(); render();
   toast(`Welcome ${r.username}. You have ${N(r.balance)} starter credits`);
 };
@@ -876,6 +910,7 @@ window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null;
   if(t==="calls"||t==="insights") await refreshCalls();
   if(t==="insights") await loadBoard();
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
+  if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null; }
   if(t==="admin") await loadAdmin();
   render(); };
 window.renderMain = ()=>{ document.getElementById("main").innerHTML = views[S.tab]();
@@ -911,13 +946,31 @@ window.postComment = async ()=>{
   if(r.error) return toast(r.error);
   await loadComments(S.detail.id); render();
 };
+window.uploadAvatar = async (input)=>{
+  const file = input.files && input.files[0];
+  if(!file) return;
+  if(file.size > 2 * 1024 * 1024) return toast("Keep your photo under 2MB");
+  if(!/^image\/(png|jpeg|webp)$/.test(file.type)) return toast("Use a PNG, JPG or WebP image");
+  toast("Uploading your photo\u2026");
+  const ext = file.type === "image/png" ? "png" : file.type === "image/webp" ? "webp" : "jpg";
+  const path = `${S.session.user.id}/avatar_${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from("avatars").upload(path, file, { upsert: true, contentType: file.type });
+  if(error) return toast("Upload failed: " + error.message);
+  const r = await rpc("profile_avatar_set", { p_path: path });
+  if(r.error) return toast(r.error);
+  S.profile.avatarUrl = r.avatar_url;
+  if(S.overview) S.overview.avatar_url = r.avatar_url;
+  render(); toast("Looking sharp. Photo updated");
+};
 window.kycSubmit = async ()=>{
   const t = (document.getElementById("kyc_type")||{}).value || "BVN";
   const num = ((document.getElementById("kyc_num")||{}).value||"").trim();
   if(num.length < 10) return toast("Enter your full 11-digit number");
   const r = await rpc("kyc_submit", { p_id_type: t, p_last4: num.slice(-4) });
   if(r.error) return toast(r.error);
-  S.profile.kycStatus = "pending"; render();
+  S.profile.kycStatus = "pending";
+  if(S.overview) S.overview.kyc_status = "pending";
+  render();
   toast("Verification submitted. Status: pending review");
 };
 window.adminKyc = async (u, status)=>{
