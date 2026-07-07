@@ -1,0 +1,7 @@
+-- MILESTONE: Oracle leaderboard
+-- Applied to production via Supabase connector on 2026-07-07 (oracle_leaderboard).
+-- leaderboard() RPC: rankings from settled markets only. Per user:
+-- settled_calls, wins, accuracy, total_won (settlement credits), rank_tier
+-- ("Oracle" at 10+ settled calls with >=60% accuracy, else "Rising").
+-- Ranked by winnings weighted by accuracy, top 50. Public read: usernames and
+-- performance stats only -- no emails, no balances.

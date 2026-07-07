@@ -15,10 +15,10 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 <script>
-/* Resilient loader: try jsdelivr, fall back to unpkg, else show a helpful
-   message instead of a blank page (extensions/filters sometimes block CDNs). */
+/* Load the Supabase library from our own domain first (immune to CDN
+   blockers), with CDN backups, and a helpful message if everything fails. */
 (function(){
-  function boot(){ if(window.__wananaBoot) window.__wananaBoot(); }
+  function boot(){ if(window.supabase && window.__wananaBoot) window.__wananaBoot(); }
   function fail(){
     var el = document.getElementById("app");
     if(el) el.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;color:#8E95BE;font-family:system-ui;line-height:1.7">Wanana could not load a required component.<br/>A browser extension or privacy shield may be blocking it.<br/>Allow this site in your blocker, or try another browser.</div>';
@@ -29,8 +29,10 @@
     document.head.appendChild(s);
   }
   window.addEventListener("DOMContentLoaded", function(){
-    load("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js", function(){
-      load("https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js", fail);
+    load("/vendor/supabase.js", function(){
+      load("https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js", function(){
+        load("https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js", fail);
+      });
     });
   });
 })();
@@ -215,8 +217,8 @@ const S = {
   markets: [], myCalls: [],
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [],
-  ledger: [], dispute: null,
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets" },
+  ledger: [], dispute: null, board: [], pay: null, refPrefill: "",
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all" },
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
 const N = n => "\u20A6" + Number(n||0).toLocaleString("en-NG");
@@ -240,7 +242,7 @@ async function loadComments(id){
 async function loadProfile(){
   if(!S.session){ S.profile = null; return; }
   const me = await rpc("me");
-  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin } : null;
+  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started" } : null;
 }
 async function loadLedger(){
   if(!S.session) return;
@@ -259,11 +261,50 @@ async function loadAdmin(){
   S.admin.comments = Array.isArray(c) ? c : [];
   S.admin.audit    = Array.isArray(a) ? a : [];
 }
+async function loadBoard(){
+  const r = await rpc("leaderboard");
+  S.board = Array.isArray(r) ? r : [];
+}
 async function refreshCalls(){
   if(!S.session) return;
   const r = await rpc("my_calls");
   S.myCalls = Array.isArray(r) ? r : [];
 }
+
+/* Wanana AI insight engine: rule-based today, API-pluggable later. */
+const wananaAI = {
+  pulse(m){
+    const y = yesPct(m); const pot = m.yes_pool + m.no_pool;
+    const pots = S.markets.map(x=>x.yes_pool+x.no_pool).sort((a,b)=>a-b);
+    const mid = pots.length ? pots[Math.floor(pots.length/2)] : 0;
+    const parts = [];
+    if(y >= 62) parts.push(`The crowd is leaning YES at ${y}%.`);
+    else if(y <= 38) parts.push(`The crowd is leaning NO at ${100-y}%.`);
+    else parts.push("The crowd is split down the middle. Somebody is wrong.");
+    if(pot === 0) parts.push("Empty pool. The first call names the price.");
+    else if(pot >= mid * 1.5 && pots.length > 2) parts.push(`Serious pool at ${N(pot)}. Conviction is high here.`);
+    else if(pot < mid && pots.length > 2) parts.push("Quiet pool so far. Early readers get the best prices.");
+    else parts.push(`Pool sits at ${N(pot)}.`);
+    if(S.comments.length >= 5) parts.push("The discussion is heating up. Read the takes before you call.");
+    parts.push(`Settles against ${esc(m.source)}.`);
+    return parts.join(" ");
+  },
+  edge(calls){
+    const settled = calls.filter(c=>c.status==="settled" && c.outcome);
+    if(settled.length === 0)
+      return "Make your calls and let a few markets settle. Wanana AI starts mapping where your reads are sharpest, category by category.";
+    const byCat = {};
+    settled.forEach(c=>{ const b = byCat[c.category] = byCat[c.category] || {n:0,w:0}; b.n++; if(c.side===c.outcome) b.w++; });
+    const ranked = Object.entries(byCat).map(([cat,b])=>({cat, n:b.n, rate:Math.round(b.w*100/b.n)})).sort((a,b)=>b.rate-a.rate);
+    const best = ranked[0]; const wins = settled.filter(c=>c.side===c.outcome).length;
+    const overall = Math.round(wins*100/settled.length);
+    let line = `Across ${settled.length} settled calls your read rate is ${overall}%.`;
+    if(best && best.n >= 2) line += ` Your sharpest category is ${best.cat} at ${best.rate}%. Lean into what you actually know.`;
+    else line += " A few more settled calls and the category picture gets clear.";
+    if(ranked.length > 1 && ranked[ranked.length-1].rate < 40) line += ` ${ranked[ranked.length-1].cat} has not been kind to you. The crowd sees something there that you do not, yet.`;
+    return line;
+  },
+};
 
 let toastTimer;
 function toast(msg){
@@ -338,6 +379,7 @@ function render(){
     ${S.detail ? detailSheet() : ""}
     ${S.trade ? tradeSheet() : ""}
     ${S.dispute ? disputeSheet() : ""}
+    ${S.pay ? paySheet() : ""}
     <nav class="bottom" aria-label="Main">${navButtons()}</nav>
   </div>`;
 }
@@ -421,7 +463,7 @@ function heroView(){
         <h1>Africa argues about everything. <span class="em">Wanana pays whoever is right.</span></h1>
         <p class="lead">Post a question, make your call, and get paid when you call it right. The crowd sets the price. Skill gets paid. Every result is verified.</p>
         ${authBox()}
-        <p class="note">Open beta on free starter credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever.</p>
+        <p class="note">Open beta on free starter credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:var(--slate)">Terms · Privacy · Responsible Play</a></p>
       </div>
       ${previews ? `<div class="hero-preview" aria-hidden="true">
         <div class="preview-label">Live on wanana right now</div>
@@ -444,6 +486,8 @@ function profileSetupView(){
           ${authMsgHtml()}
           <div class="field"><label>Username</label>
             <input id="p_username" maxlength="20" placeholder="e.g. LagosOracle" /></div>
+          <div class="field"><label>Referral code (optional)</label>
+            <input id="p_ref" maxlength="6" placeholder="e.g. 3EA0AE" value="${esc(S.refPrefill)}" style="text-transform:uppercase" /></div>
           <button class="cta" ${S.busy?"disabled":""} onclick="doProfileSetup()">Make your first call</button>
           <div class="alinks"><button class="alink" onclick="doSignOut()">Sign out</button></div>
         </div>
@@ -483,12 +527,19 @@ const views = {
         <div class="stat"><div class="l">Potential win</div><div class="v" style="color:var(--teal)">${N(potential)}</div></div>
         <div class="stat"><div class="l">Best category</div><div class="v">${best?best[0]:"None yet"}</div></div>
       </div>
-      <div class="aicard"><div class="t">Wanana AI weekly brief</div>
-        <p>${open.length===0
-          ? "Once you make your first few calls, the AI starts learning your pattern. It will tell you which categories you read best, when you tend to overpay for YES, and which markets are moving before the crowd notices. Make a call and check back."
-          : `Early days, but here is what the numbers say. Most of your activity sits in ${best?best[0]:"one category"}, and your open positions would return ${N(potential)} if they all land. Watch how pools move in the final week before resolution. Late money usually knows something.`}</p>
+      <div class="aicard"><div class="t">Your Edge · Wanana AI</div>
+        <p>${wananaAI.edge(S.myCalls)}</p>
       </div>
-      <p class="note">Oracle ranks unlock at ten settled calls. Read the moment better than the crowd and climb.</p>
+      <div style="font-family:var(--disp);font-weight:600;font-size:15px;margin:6px 0 10px">Top Oracles</div>
+      ${S.board.length===0 ? `<div class="empty">The leaderboard fills up as markets settle. Be early.</div>` :
+        S.board.map((o,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="font-family:var(--disp);font-weight:700;color:${i===0?"var(--orange)":i<3?"var(--glow)":"var(--slate)"};min-width:26px">#${i+1}</span>
+          <span style="flex:1;min-width:0"><b style="color:var(--text)">${esc(o.username)}</b>
+            ${o.rank_tier==="Oracle" ? ` <span class="cat" style="color:var(--orange)">ORACLE</span>` : ""}
+            <span style="color:var(--slate)"> · ${o.wins}/${o.settled_calls} settled · ${o.accuracy}% read rate${o.best_streak>1?` · streak ${o.best_streak}`:""}${o.top_category?` · ${o.top_category}`:""} · ${o.total_calls} calls</span></span>
+          <b style="color:var(--teal);white-space:nowrap">${N(o.total_won)}</b>
+        </div>`).join("")}
+      <p class="note">Oracle rank unlocks at ten settled calls with a 60% read rate. Read the moment better than the crowd and climb.</p>
     </div>`;
   },
   create(){
@@ -540,9 +591,35 @@ const views = {
       </div>
       <div class="row">
         <button class="btn-yes" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="topUp()">Get free credits</button>
-        <button class="btn-no" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Cash wallets arrive with our gaming licence')">Withdraw</button>
+        <button class="btn-yes" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="S.pay='deposit';render()">Deposit</button>
+        <button class="btn-no" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="S.pay='withdraw';render()">Withdraw</button>
       </div>
       <div style="margin-top:14px"><button class="signout" onclick="doSignOut()">Sign out of Wanana</button></div>
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:14px">
+        <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Invite your people</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20A65,000 demo credits land in your wallet.</div>
+        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+          <span style="font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.18em;color:var(--glow)">${esc(S.profile.referralCode||"")}</span>
+          <button class="chip" onclick="copyRef()">Copy invite link</button>
+        </div>
+      </div>
+      ${(()=>{
+        const k = S.profile.kycStatus || "not_started";
+        const col = {not_started:"var(--slate)",pending:"var(--glow)",verified:"var(--teal)",rejected:"var(--coral)"}[k];
+        const label = {not_started:"Not started",pending:"Pending review",verified:"Verified",rejected:"Rejected"}[k];
+        return `<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-top:14px">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <div style="font-family:var(--disp);font-weight:600;font-size:14px">Identity verification</div>
+          <span class="cat" style="color:${col}">${label}</span>
+        </div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${k==="not_started"||k==="rejected"?"12px":"0"}">Verification will be required before real-money features. During open beta we keep only the last 4 digits of your ID number, never the full number.</div>
+        ${k==="not_started"||k==="rejected" ? `
+          <div style="display:flex;gap:8px;margin-bottom:10px">
+            <select id="kyc_type" style="flex:0 0 110px"><option>BVN</option><option>NIN</option></select>
+            <input id="kyc_num" inputmode="numeric" maxlength="11" placeholder="Your 11-digit number" oninput="this.value=this.value.replace(/\\D/g,'')" />
+          </div>
+          <button class="cta" onclick="kycSubmit()">Submit for verification</button>` : ``}
+      </div>`;})()}
       <div style="margin-top:18px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:10px">Recent activity</div>
         ${S.ledger.length===0 ? `<div class="empty">Your wallet history shows up here.</div>` :
@@ -553,7 +630,7 @@ const views = {
       </div>
       <p class="note">Every movement on your wallet is recorded in an append-only ledger. Demo credits only during open beta.</p>
       <p class="note">Wanana is in open beta and runs on free play credits while our licence application is in progress. Cash funding via Paystack and Flutterwave, plus USSD, with KYC by BVN or NIN, switches on at launch.</p>
-      <p class="note">Play within your limit. Take a break anytime. 18+ only.</p>
+      <p class="note">Play within your limit. Take a break anytime. 18+ only. <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></p>
     </div>`;
   },
   admin(){
@@ -587,22 +664,35 @@ const views = {
       <h2 class="tabtitle">Admin</h2>
       <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
       <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
-      ${A.panel==="markets" ? (A.markets.length ? A.markets.map(mk).join("") : `<div class="empty">Nothing needs review right now.</div>`) : ""}
+      ${A.panel==="markets" ? `
+        <div class="chips" style="padding-left:0">
+          ${["all","pending_review","live","closed","in_verification","dispute_window"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
+          <select onchange="S.admin.fC=this.value;renderMain()" style="width:auto;padding:7px 12px;border-radius:999px;font-size:13px">
+            ${["all"].concat(CATS.slice(1)).map(c=>`<option ${A.fC===c?"selected":""}>${c}</option>`).join("")}
+          </select>
+        </div>
+        ${(()=>{const L=A.markets.filter(m=>(A.fS==="all"||m.status===A.fS)&&(A.fC==="all"||m.category===A.fC));
+          return L.length ? L.map(mk).join("") : `<div class="empty">Nothing in this queue right now.</div>`;})()}` : ""}
       ${A.panel==="disputes" ? (A.disputes.length ? A.disputes.map(d=>`<div class="card" style="margin-bottom:12px">
           <div class="q" style="font-size:14px">${esc(d.question)}</div>
           <div style="font-size:12.5px;color:var(--slate);margin-bottom:10px"><b style="color:var(--glow)">${esc(d.username)}</b>: ${esc(d.reason)}</div>
           <div class="row" style="margin-bottom:0"><button class="btn-yes" onclick="adminAct('admin_dispute_decide',${d.id})">Mark reviewed</button></div>
         </div>`).join("") : `<div class="empty">No open disputes.</div>`) : ""}
-      ${A.panel==="ledger" ? `<div class="card">${A.ledger.map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
+      ${A.panel==="ledger" ? `<input placeholder="Filter by user, type or note" value="${esc(A.q)}" onchange="S.admin.q=this.value;renderMain()" style="margin-bottom:10px" />
+      <div class="card">${A.ledger.filter(l=>!A.q||(l.username+" "+l.transaction_type+" "+(l.notes||"")).toLowerCase().includes(A.q.toLowerCase())).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
           <span><b style="color:var(--glow)">${esc(l.username)}</b> ${l.transaction_type.replace(/_/g," ")} <span style="color:var(--slate)">${esc(l.notes||"")}</span></span>
           <span><b style="color:${l.amount>0?"var(--teal)":"var(--coral)"}">${l.amount>0?"+":""}${N(l.amount)}</b> <span style="color:var(--slate)">by ${esc(l.created_by)}</span></span>
         </div>`).join("") || "No entries yet."}</div>` : ""}
-      ${A.panel==="users" ? `<div class="card">${A.users.map(u=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap">
+      ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
+      <div class="card">${A.users.map(u=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap">
           <span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span>
           <b>${N(u.balance)}</b>
         </div>`).join("") || "No users yet."}</div>` : ""}
       ${A.panel==="comments" ? `<div class="card">${A.comments.map(c=>`<div class="comment" style="border-bottom:1px solid var(--line);padding-bottom:8px"><b>${esc(c.username)}</b> on market #${c.market_id}: ${esc(c.body)}</div>`).join("") || "No comments yet."}</div>` : ""}
-      ${A.panel==="audit" ? `<div class="card">${A.audit.map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px">
+      ${A.panel==="audit" ? `<select onchange="S.admin.fA=this.value;renderMain()" style="margin-bottom:10px;width:auto">
+        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision"].map(a=>`<option ${A.fA===a?"selected":""}>${a}</option>`).join("")}
+      </select>
+      <div class="card">${A.audit.filter(a=>A.fA==="all"||a.action===A.fA).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px">
           <b style="color:var(--glow)">${esc(a.actor)}</b> ${a.action.replace(/_/g," ")}${a.market_id?` · market #${a.market_id}`:""}${a.target?` · ${esc(a.target)}`:""}
           <span style="color:var(--slate)"> · ${new Date(a.created_at).toLocaleString()}</span>
         </div>`).join("") || "No admin actions yet."}</div>` : ""}
@@ -627,12 +717,29 @@ function detailSheet(){
       <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:13px 14px;font-size:12.5px;color:var(--slate);line-height:1.65;margin-bottom:16px">
         <span class="verified">\u2713 Verified settlement</span> \u00b7 outcome confirmed via ${esc(m.source)}. Pool ${N(m.yes_pool+m.no_pool)} \u00b7 created by ${esc(m.creator)}. Winners split the pool by stake. Wanana takes 5%, the creator earns 1%, and payouts release after a 48 hour dispute window.
       </div>
+      <div class="aicard"><div class="t">Market Pulse · Wanana AI</div><p>${wananaAI.pulse(m)}</p></div>
       <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:10px">Discussion</div>
       <div id="comments">${S.comments.map(c=>`<div class="comment"><b>${esc(c.username)}</b> ${esc(c.body)}</div>`).join("") || `<div style="color:var(--slate);font-size:13px;margin-bottom:10px">No takes yet. Drop the first one.</div>`}</div>
       <div style="display:flex;gap:8px;margin-top:8px">
         <input id="cbody" maxlength="500" placeholder="Share your take" style="flex:1" />
         <button onclick="postComment()" style="padding:0 18px;background:var(--orange);color:var(--indigo);font-family:var(--disp);font-weight:700;font-size:13px;border-radius:8px">Post</button>
       </div>
+    </div></div>`;
+}
+
+function paySheet(){
+  const mode = S.pay === "deposit" ? "Deposit" : "Withdraw";
+  return `<div class="sheet-bg" style="z-index:60" onclick="S.pay=null;render()">
+    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="${mode}">
+      <div class="handle"></div>
+      <div style="font-family:var(--disp);font-weight:700;font-size:18px;margin-bottom:6px">${mode}</div>
+      <p class="authmsg" style="margin-bottom:14px">Payments are not live yet. This is a demo wallet.</p>
+      <div class="field"><label>Amount</label><input inputmode="numeric" placeholder="₦ amount" disabled style="opacity:.55" /></div>
+      <div class="row">
+        <button class="btn-yes" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo wallet.')">Pay with Paystack</button>
+        <button class="btn-no" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo wallet.')">Pay with Flutterwave</button>
+      </div>
+      <p class="note">Real-money features will only go live after licensing, KYC and payment review. Until then, every balance on Wanana is a demo credit balance (NGN_DEMO). Nothing here is real money.</p>
     </div></div>`;
 }
 
@@ -747,10 +854,11 @@ window.doProfileSetup = async ()=>{
   const u = ((document.getElementById("p_username")||{}).value || "").trim();
   if(u.length < 3){ setMsg("Username needs at least 3 characters", true); return render(); }
   S.busy = true; render();
-  const r = await rpc("profile_setup", { p_username: u });
+  const refCode = (((document.getElementById("p_ref")||{}).value)||"").trim();
+  const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null });
   S.busy = false;
   if(r.error){ setMsg(r.error, true); return render(); }
-  S.profile = { username: r.username, balance: r.balance };
+  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started" };
   setMsg(null); await loadMarkets(); render();
   toast(`Welcome ${r.username}. You have ${N(r.balance)} starter credits`);
 };
@@ -764,6 +872,7 @@ window.doSignOut = async ()=>{
 window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null;
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();
+  if(t==="insights") await loadBoard();
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
   if(t==="admin") await loadAdmin();
   render(); };
@@ -799,6 +908,26 @@ window.postComment = async ()=>{
   const r = await rpc("comment_add", { p_market_id:S.detail.id, p_body:b });
   if(r.error) return toast(r.error);
   await loadComments(S.detail.id); render();
+};
+window.kycSubmit = async ()=>{
+  const t = (document.getElementById("kyc_type")||{}).value || "BVN";
+  const num = ((document.getElementById("kyc_num")||{}).value||"").trim();
+  if(num.length < 10) return toast("Enter your full 11-digit number");
+  const r = await rpc("kyc_submit", { p_id_type: t, p_last4: num.slice(-4) });
+  if(r.error) return toast(r.error);
+  S.profile.kycStatus = "pending"; render();
+  toast("Verification submitted. Status: pending review");
+};
+window.adminKyc = async (u, status)=>{
+  const r = await rpc("admin_kyc_set", { p_username: u, p_status: status });
+  if(r.error) return toast(r.error);
+  await loadAdmin(); renderMain(); toast("KYC " + status + ". Logged to the audit trail");
+};
+window.copyRef = ()=>{
+  const link = "https://www.wanana.africa/?ref=" + (S.profile.referralCode||"");
+  const done = ()=>toast("Invite link copied. Share it far");
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(link).then(done, ()=>prompt("Copy your invite link:", link)); }
+  else prompt("Copy your invite link:", link);
 };
 window.topUp = async ()=>{
   const r = await rpc("wallet_top_up");
@@ -853,6 +982,8 @@ sb.auth.onAuthStateChange(async (event, session)=>{
 
 (async ()=>{
   try{
+    const _rp = new URLSearchParams(location.search).get("ref");
+    if(_rp) S.refPrefill = _rp.toUpperCase().slice(0,6);
     const { data } = await sb.auth.getSession();
     S.session = data ? data.session : null;
     await loadMarkets();

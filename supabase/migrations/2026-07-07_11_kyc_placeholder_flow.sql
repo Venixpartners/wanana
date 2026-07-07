@@ -1,0 +1,8 @@
+-- MILESTONE: KYC placeholder flow (no real verification)
+-- Applied to production via connector (kyc_placeholder_flow).
+-- profiles: kyc_status (not_started/pending/verified/rejected), kyc_masked,
+-- kyc_submitted_at. The client transmits ONLY the last 4 digits of a BVN/NIN;
+-- the full number is never sent or stored. kyc_submit() validates and sets
+-- pending; admin_kyc_set() decides, audited as kyc_decision, and notifies the
+-- user. admin_users_recent() now includes KYC status. Real verification
+-- arrives with licensing, before any real-money feature.

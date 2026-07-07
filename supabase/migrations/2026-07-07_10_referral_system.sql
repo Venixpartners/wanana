@@ -1,0 +1,8 @@
+-- MILESTONE: Referral system (demo credits only)
+-- Applied to production via connector (referral_system + referral_code_builtin_generator).
+-- profiles: referral_code (unique, auto-generated), referred_by, referral_rewarded.
+-- profile_setup(username, referral_code?) validates and links the referrer.
+-- call_place releases a one-time 5,000 NGN_DEMO referral_reward to the
+-- referrer when the referred user makes their FIRST call, through the
+-- append-only ledger, with a referral_reward email enqueued.
+-- Ledger transaction_type vocabulary updated: referral_reward.

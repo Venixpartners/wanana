@@ -1,0 +1,12 @@
+-- MILESTONE: Feature integration pass
+-- leaderboard() upgraded: total_calls, best win streak, strongest category
+-- (settled markets only). notifications table locked down (RLS default-deny
+-- plus explicit revoke of all direct API access). Full-lifecycle integration
+-- test passed: signup -> create -> approve -> calls -> ledger -> verification
+-- -> outcome -> dispute window blocks settlement -> settlement pays winners,
+-- creator and referral correctly -> audit trail complete.
+-- Frontend adds (index.html): leaderboard v2 row stats, referral UI + ?ref=
+-- capture, KYC card + admin KYC controls, Wanana AI engine (Market Pulse +
+-- Your Edge), Paystack/Flutterwave placeholder screens (disabled, demo-only
+-- language), admin queue filters + ledger search + audit filters + user
+-- summary, legal.html linked from hero and wallet.
