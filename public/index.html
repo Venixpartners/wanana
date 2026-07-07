@@ -219,7 +219,7 @@ const S = {
   markets: [], myCalls: [],
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [],
-  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null,
+  ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false,
   admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", q: "", fA: "all", userDetail: null },
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
@@ -390,6 +390,7 @@ function render(){
     ${S.dispute ? disputeSheet() : ""}
     ${S.pay ? paySheet() : ""}
     ${S.admin.userDetail ? userDetailSheet() : ""}
+    ${S.help ? helpSheet() : ""}
     <nav class="bottom" aria-label="Main">${navButtons()}</nav>
   </div>`;
 }
@@ -474,7 +475,7 @@ function heroView(){
         <h1>Africa argues about everything. <span class="em">Wanana pays whoever is right.</span></h1>
         <p class="lead">Post a question, make your call, and get paid when you call it right. The crowd sets the price. Skill gets paid. Every result is verified.</p>
         ${authBox()}
-        <p class="note">Open beta on free starter credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:var(--slate)">Terms · Privacy · Responsible Play</a></p>
+        <p class="note">Open beta on free starter credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:var(--slate)">Terms · Privacy · Responsible Play</a> · <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button></p>
       </div>
       ${previews ? `<div class="hero-preview" aria-hidden="true">
         <div class="preview-label">Live on wanana right now</div>
@@ -617,7 +618,7 @@ const views = {
       </div>
       <p class="note">Every movement on your wallet is recorded in an append-only ledger. Demo credits only during open beta.</p>
       <p class="note">Wanana is in open beta and runs on free play credits while our licence application is in progress. Cash funding via Paystack and Flutterwave, plus USSD, with KYC by BVN or NIN, switches on at launch.</p>
-      <p class="note">Play within your limit. Take a break anytime. 18+ only. <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></p>
+      <p class="note">Play within your limit. Take a break anytime. 18+ only. <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button> · <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></p>
     </div>`;
   },
   profile(){
@@ -666,8 +667,11 @@ const views = {
           <button class="chip" onclick="copyRef()">Copy invite link</button>
         </div>
       </div>
-      <button class="signout" onclick="doSignOut()">Sign out of Wanana</button>
-      <p class="note">Need help or want your data deleted? See <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a>.</p>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+        <button class="signout" onclick="doSignOut()">Sign out of Wanana</button>
+        <button class="signout" onclick="S.help=true;render()">Help &amp; FAQ</button>
+      </div>
+      <p class="note">Need help or want your data deleted? Open <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button> or email support@wanana.africa. Full policies in <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a>.</p>
     </div>`;
   },
   admin(){
@@ -761,6 +765,31 @@ function detailSheet(){
         <input id="cbody" maxlength="500" placeholder="Share your take" style="flex:1" />
         <button onclick="postComment()" style="padding:0 18px;background:var(--orange);color:var(--indigo);font-family:var(--disp);font-weight:700;font-size:13px;border-radius:8px">Post</button>
       </div>
+    </div></div>`;
+}
+
+function helpSheet(){
+  const qa = [
+    ["What is Wanana?",
+     "A peer prediction marketplace and game of skill. Someone posts a real-world yes-or-no question, the crowd stakes demo credits on each side, and when the outcome is verified against a public source, whoever called it right is paid from the pool. Wanana never plays against you \u2014 we are the referee, not the house."],
+    ["How do calls and payouts work?",
+     "Pick a market, choose YES or NO, and stake at least \u20A6500 in demo credits. The split of the pool is the live crowd price. When the market settles, winners share the pool in proportion to their stakes. Wanana takes 5% and the market creator earns 1%."],
+    ["Is this real money?",
+     "No. Wanana is in open beta and every balance is a demo credit balance (NGN_DEMO) with no cash value. Real-money features only arrive after licensing, identity verification (KYC) and payment review are complete."],
+    ["How are results verified, and what if I disagree?",
+     "Every market names a public source when it is created. When the event concludes, the outcome is checked against that source and a 48-hour dispute window opens \u2014 every participant is emailed. If you think the outcome is wrong, open a dispute from Your calls with your evidence. Payouts are impossible before the window closes, and disputed markets always wait for human review."],
+    ["Something is not working. How do I reach a person?",
+     'Email <a href="mailto:support@wanana.africa" style="color:var(--glow)">support@wanana.africa</a> and a human will get back to you. Include your Oracle name and, if it is about a market, the market question.'],
+  ];
+  return `<div class="sheet-bg" style="z-index:60" onclick="S.help=false;render()">
+    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Help and FAQ">
+      <div class="handle"></div>
+      <div style="font-family:var(--disp);font-weight:700;font-size:18px;margin-bottom:14px">Help &amp; FAQ</div>
+      ${qa.map(([q,a])=>`<div style="margin-bottom:16px">
+        <div style="font-family:var(--disp);font-weight:600;font-size:14px;color:var(--glow);margin-bottom:5px">${q}</div>
+        <div style="font-size:13px;line-height:1.65;color:var(--text)">${a}</div>
+      </div>`).join("")}
+      <p class="note">More detail lives in <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a> \u2014 Terms, Privacy, Responsible Play, Market Rules, and Dispute &amp; Settlement Rules. 18+ only. Play within your limit.</p>
     </div></div>`;
 }
 
