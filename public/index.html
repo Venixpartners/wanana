@@ -270,9 +270,13 @@ function avatarHtml(url, name, size){
 }
 
 async function rpc(fn, args){
-  const { data, error } = await sb.rpc(fn, args || {});
-  if(error) return { error: error.message || "Something went wrong. Try again." };
-  return data;
+  try{
+    const { data, error } = await sb.rpc(fn, args || {});
+    if(error) return { error: error.message || "Something went wrong. Try again." };
+    return data;
+  }catch(e){
+    return { error: "Network hiccup. Check your connection and try again." };
+  }
 }
 async function loadMarkets(){
   const { data, error } = await sb.from("markets").select("*").eq("status","live").order("created_at",{ascending:false});
@@ -287,7 +291,8 @@ async function loadComments(id){
 }
 async function loadProfile(){
   if(!S.session){ S.profile = null; return; }
-  const me = await rpc("me");
+  let me = await rpc("me");
+  if(me && me.error){ await new Promise(r=>setTimeout(r, 700)); me = await rpc("me"); }
   S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
 }
 async function loadLedger(){
@@ -1430,14 +1435,23 @@ window.sendDispute = async ()=>{
 };
 
 /* ---------------- Session lifecycle ---------------- */
-sb.auth.onAuthStateChange(async (event, session)=>{
+const withTimeout = (p, ms)=> Promise.race([p, new Promise(res=>setTimeout(()=>res(null), ms))]);
+sb.auth.onAuthStateChange((event, session)=>{
   S.session = session;
   if(event === "PASSWORD_RECOVERY"){ S.recovery = true; S.authMode = "newpass"; setMsg(null); render(); return; }
-  if(event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
-    if(session){ await loadProfile(); await refreshCalls(); checkWins(); }
-    render(); return;
-  }
-  if(event === "SIGNED_OUT"){ S.profile = null; S.myCalls = []; render(); }
+  /* IMPORTANT: never await supabase calls inside this callback — the client
+     holds an internal lock while dispatching events and calling back into it
+     can deadlock (sign-in succeeds server-side but the UI never advances).
+     Defer all async work so the callback returns immediately. */
+  setTimeout(async ()=>{
+    try{
+      if(event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
+        if(session){ await withTimeout(Promise.all([loadProfile(), refreshCalls()]).catch(()=>null), 8000); checkWins(); }
+      }
+      if(event === "SIGNED_OUT"){ S.profile = null; S.myCalls = []; }
+    }catch(e){}
+    render();
+  }, 0);
 });
 
 (async ()=>{
@@ -1448,7 +1462,6 @@ sb.auth.onAuthStateChange(async (event, session)=>{
   /* Paint the interface immediately — never leave a blank screen while
      the session and data load in the background. */
   render();
-  const withTimeout = (p, ms)=> Promise.race([p, new Promise(res=>setTimeout(()=>res(null), ms))]);
   try{
     const sess = await withTimeout(sb.auth.getSession(), 6000);
     S.session = sess && sess.data ? sess.data.session : null;
