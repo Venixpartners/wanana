@@ -225,7 +225,12 @@ nav.bottom button.on::before{content:"";position:absolute;top:0;left:50%;transfo
 </style>
 </head>
 <body>
-<div id="app"></div>
+<div id="app"><div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#8E95BE;font-family:system-ui">
+  <div style="font-size:26px;font-weight:700;letter-spacing:.5px;color:#F4F6FF">wanana</div>
+  <div style="width:26px;height:26px;border:3px solid #232B63;border-top-color:#FF7A1A;border-radius:50%;animation:wnspin 0.9s linear infinite"></div>
+  <div style="font-size:13px">Loading&hellip; if this takes long, refresh the page.</div>
+  <style>@keyframes wnspin{to{transform:rotate(360deg)}}</style>
+</div></div>
 
 <script>
 window.__wananaBoot = function(){
@@ -1439,10 +1444,17 @@ sb.auth.onAuthStateChange(async (event, session)=>{
   try{
     const _rp = new URLSearchParams(location.search).get("ref");
     if(_rp) S.refPrefill = _rp.toUpperCase().slice(0,6);
-    const { data } = await sb.auth.getSession();
-    S.session = data ? data.session : null;
-    await loadMarkets();
-    if(S.session){ await loadProfile(); await refreshCalls(); checkWins(); }
+  }catch(e){}
+  /* Paint the interface immediately — never leave a blank screen while
+     the session and data load in the background. */
+  render();
+  const withTimeout = (p, ms)=> Promise.race([p, new Promise(res=>setTimeout(()=>res(null), ms))]);
+  try{
+    const sess = await withTimeout(sb.auth.getSession(), 6000);
+    S.session = sess && sess.data ? sess.data.session : null;
+    await withTimeout(loadMarkets(), 8000);
+    render();
+    if(S.session){ await withTimeout(Promise.all([loadProfile(), refreshCalls()]), 8000); checkWins(); }
   }catch(e){}
   render();
 })();
