@@ -257,7 +257,7 @@ const S = {
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
   admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
-  myMarkets: [], editMarket: null, badges: [],
+  myMarkets: [], editMarket: null, badges: [], weekBoard: null, boardMode: "week",
 };
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
 /* Arena skin: display names only — category values and legal vocabulary never change */
@@ -685,8 +685,26 @@ const views = {
           <div style="display:flex;gap:4px;margin-bottom:10px">${TIERS.map((tt,i)=>`<div style="flex:1;height:6px;border-radius:3px;background:${i<=idx?(TIER_COLOR[o.rank_tier]||"var(--orange)"):"var(--line)"}"></div>`).join("")}</div>
           <div style="font-size:12.5px;color:var(--slate);line-height:1.6">${esc(TIER_NEXT[o.rank_tier]||"")} Rank grows from settled-call accuracy only \u2014 read it right, climb the path.${Number(o.best_streak)>=2?` Best streak: ${o.best_streak} in a row.`:""}</div>
         </div>`; })()}
-      <div style="font-family:var(--disp);font-weight:600;font-size:15px;margin:6px 0 10px">Top Oracles</div>
-      ${S.board.length===0 ? `<div class="empty">The leaderboard fills up as markets settle. Be early.</div>` :
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0 10px">
+        <div style="font-family:var(--disp);font-weight:600;font-size:15px">${S.boardMode==="week" ? "Top Callers" : "Top Oracles"}</div>
+        <div class="chips" style="padding:0;margin:0">
+          <button class="chip ${S.boardMode==="week"?"on":""}" onclick="S.boardMode='week';renderMain()">This week</button>
+          <button class="chip ${S.boardMode==="all"?"on":""}" onclick="S.boardMode='all';renderMain()">All time</button>
+        </div>
+      </div>
+      ${S.boardMode==="week" ? (()=>{
+        const wb = S.weekBoard; const rows = wb && Array.isArray(wb.entries) ? wb.entries : [];
+        const head = wb ? `<div style="font-size:12px;color:var(--slate);margin-bottom:10px">Season ${esc(wb.week_start)} \u2192 ${esc(wb.week_ends)} \u00b7 resets Monday. Fresh week, fresh race.</div>` : "";
+        if(!rows.length) return head + `<div class="empty">Nobody has settled a call this week yet. First clean call tops the board.</div>`;
+        return head + rows.map((o,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px">
+          <span style="font-family:var(--disp);font-weight:700;color:${i===0?"var(--orange)":i<3?"var(--glow)":"var(--slate)"};min-width:26px">#${i+1}</span>
+          ${avatarHtml(o.avatar_url, o.username, 28)}
+          <span style="flex:1;min-width:0"><b style="color:var(--text)">${esc(o.username)}</b>
+            ${o.rank_tier && o.rank_tier!=="Rookie" ? ` ${tierBadge(o.rank_tier, 9)}` : ""}
+            <span style="color:var(--slate)"> \u00b7 ${o.wins}/${o.settled_calls} settled this week \u00b7 ${o.accuracy}% read rate</span></span>
+          <b style="color:var(--teal);white-space:nowrap">${N(o.week_won)}</b>
+        </div>`).join("");
+      })() : (S.board.length===0 ? `<div class="empty">The leaderboard fills up as markets settle. Be early.</div>` :
         S.board.map((o,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px">
           <span style="font-family:var(--disp);font-weight:700;color:${i===0?"var(--orange)":i<3?"var(--glow)":"var(--slate)"};min-width:26px">#${i+1}</span>
           ${avatarHtml(o.avatar_url, o.username, 28)}
@@ -694,7 +712,7 @@ const views = {
             ${o.rank_tier && o.rank_tier!=="Rookie" ? ` ${tierBadge(o.rank_tier, 9)}` : ""}${Number(o.current_streak)>=3 ? ` ${streakFire(o.current_streak)}` : ""}
             <span style="color:var(--slate)"> · ${o.wins}/${o.settled_calls} settled · ${o.accuracy}% read rate${o.best_streak>1?` · streak ${o.best_streak}`:""}${o.top_category?` · ${o.top_category}`:""} · ${o.total_calls} calls</span></span>
           <b style="color:var(--teal);white-space:nowrap">${N(o.total_won)}</b>
-        </div>`).join("")}
+        </div>`).join(""))}
       <p class="note">The path: Rookie \u2192 Sharp Eye \u2192 Trend Spotter \u2192 Oracle \u2192 Wanana Legend. Every level is earned by settled-call accuracy, never volume. Read the moment better than the crowd and climb.</p>
     </div>`;
   },
@@ -1307,7 +1325,8 @@ window.setMsg = setMsg;
 window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();
-  if(t==="insights"){ await loadBoard(); const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : S.overview; }
+  if(t==="insights"){ await loadBoard(); const wb = await rpc("weekly_leaderboard"); S.weekBoard = wb && !wb.error ? wb : null;
+    const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : S.overview; }
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
   if(t==="home" || t==="wallet" || t==="calls") checkWins();
   if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null;
