@@ -257,7 +257,7 @@ const S = {
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
   admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
-  myMarkets: [], editMarket: null,
+  myMarkets: [], editMarket: null, badges: [],
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture","Food"];
 /* Arena skin: display names only — category values and legal vocabulary never change */
@@ -782,6 +782,24 @@ const views = {
         <div class="stat"><div class="l">Settled</div><div class="v">${o.settled_calls}</div></div>
         <div class="stat"><div class="l">Nice reads</div><div class="v" style="color:var(--teal)">${o.wins}</div></div>
       </div>
+      ${S.badges.length ? `<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
+        <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:10px">
+          <div style="font-family:var(--disp);font-weight:600;font-size:14px">Badges</div>
+          <span style="font-size:12px;color:var(--slate)">${S.badges.filter(b=>b.earned).length} of ${S.badges.length} earned</span>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px">
+          ${S.badges.map(b=>{
+            const on = !!b.earned;
+            const prog = !on && b.target ? `<div style="height:4px;border-radius:2px;background:var(--line);margin-top:6px"><div style="height:4px;border-radius:2px;background:var(--glow);width:${Math.round((b.progress||0)*100/b.target)}%"></div></div><div style="font-size:10.5px;color:var(--slate);margin-top:3px">${b.progress||0} of ${b.target}</div>` : "";
+            return `<div title="${esc(on?b.blurb:b.hint)}" style="border:1px solid ${on?"var(--orange)":"var(--line)"};border-radius:8px;padding:10px;${on?"":"opacity:.55"}">
+              <div style="font-size:20px">${on?b.icon:"\uD83D\uDD12"}</div>
+              <div style="font-family:var(--disp);font-weight:600;font-size:12.5px;margin-top:4px;color:${on?"var(--text)":"var(--slate)"}">${esc(b.name)}</div>
+              <div style="font-size:10.5px;color:var(--slate);line-height:1.45;margin-top:3px">${esc(on?b.blurb:b.hint)}</div>
+              ${prog}
+            </div>`;
+          }).join("")}
+        </div>
+      </div>` : ""}
       <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Your markets</div>
         <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${S.myMarkets.length?"12px":"0"}">Every market you created, and where it is in the pipeline. Creators earn 1% of the settled pool.</div>
@@ -1283,7 +1301,8 @@ window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") 
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
   if(t==="home" || t==="wallet" || t==="calls") checkWins();
   if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null;
-    const mm = await rpc("my_markets"); S.myMarkets = Array.isArray(mm) ? mm : []; }
+    const mm = await rpc("my_markets"); S.myMarkets = Array.isArray(mm) ? mm : [];
+    const bd = await rpc("my_badges"); S.badges = Array.isArray(bd) ? bd : []; }
   if(t==="admin") await loadAdmin();
   render(); };
 window.renderMain = ()=>{ document.getElementById("main").innerHTML = views[S.tab]();
