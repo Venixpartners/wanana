@@ -601,6 +601,7 @@ function heroView(){
   const previews = (S.markets||[]).slice(0,3).map(m=>marketCard(m,false)).join("");
   return `<div class="hero">
     ${sparkNet()}
+    <div style="width:100%;position:relative">
     <div class="hero-in">
       <div class="hero-copy">
         <div class="skill-line">A game of skill</div>
@@ -615,7 +616,7 @@ function heroView(){
         ${previews}
       </div>` : ""}
     </div>
-    <div class="hero-in" style="display:block;max-width:960px;margin:0 auto;padding-top:0">
+    <div style="max-width:960px;margin:0 auto;padding:0 26px">
       <div style="font-family:var(--disp);font-weight:700;font-size:22px;margin:26px 0 4px">How to play</div>
       <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px;line-height:1.6">Five steps. No house, no luck \u2014 just your read against the crowd.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
@@ -632,6 +633,7 @@ function heroView(){
         </div>`).join("")}
       </div>
       <p style="font-size:12.5px;color:var(--slate);line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path \u2014 Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend \u2014 with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
+    </div>
     </div>
   </div>`;
 }
