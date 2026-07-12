@@ -256,9 +256,10 @@ const S = {
   detail: null, trade: null, comments: [], disc: null, discSort: "top", replyTo: null,
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
+  myMarkets: [], editMarket: null,
 };
-const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture"];
+const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture","Food"];
 const N = n => "\u20A6" + Number(n||0).toLocaleString("en-NG");
 const esc = s => String(s).replace(/[&<>\"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const yesPct = m => { const t = m.yes_pool + m.no_pool; return t === 0 ? 50 : Math.round(m.yes_pool*100/t); };
@@ -302,11 +303,12 @@ async function loadLedger(){
 }
 async function loadAdmin(){
   if(!S.profile || !S.profile.isAdmin) return;
-  const [m, d, l, u, c, a, rc] = await Promise.all([
+  const [m, d, l, u, c, a, rc, cr] = await Promise.all([
     rpc("admin_markets"), rpc("admin_disputes"), rpc("admin_ledger_recent"),
     rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent"),
-    rpc("admin_review_config_get")]);
+    rpc("admin_review_config_get"), rpc("admin_cancel_requests")]);
   S.admin.reviewCfg = rc && !rc.error ? rc : null;
+  S.admin.cancelReqs = Array.isArray(cr) ? cr : [];
   S.admin.markets  = Array.isArray(m) ? m : [];
   S.admin.disputes = Array.isArray(d) ? d : [];
   S.admin.ledger   = Array.isArray(l) ? l : [];
@@ -488,6 +490,20 @@ function render(){
 }
 
 /* ---------------- Auth views ---------------- */
+function pwField(id, label, ac, ph){
+  return `<div class="field"><label>${label}</label>
+    <div style="position:relative">
+      <input id="${id}" type="password" autocomplete="${ac}" placeholder="${ph}" style="padding-right:64px" />
+      <button type="button" class="alink" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);font-size:12px" onclick="togglePw('${id}',this)" aria-label="Show password">Show</button>
+    </div></div>`;
+}
+window.togglePw = (id, btn)=>{
+  const el = document.getElementById(id); if(!el) return;
+  const show = el.type === "password";
+  el.type = show ? "text" : "password";
+  btn.textContent = show ? "Hide" : "Show";
+  btn.setAttribute("aria-label", show ? "Hide password" : "Show password");
+};
 function authMsgHtml(){
   return S.authMsg ? `<p class="authmsg ${S.authMsg.err?"err":""}">${esc(S.authMsg.text)}</p>` : "";
 }
@@ -498,7 +514,8 @@ function authBox(){
     <div class="authbox">
       ${authMsgHtml()}
       <div class="field"><label>Email</label><input id="a_email" type="email" autocomplete="email" value="${email}" placeholder="you@example.com" /></div>
-      <div class="field"><label>Password</label><input id="a_pass" type="password" autocomplete="new-password" placeholder="At least 8 characters" /></div>
+      ${pwField("a_pass","Password","new-password","At least 8 characters")}
+      ${pwField("a_pass2","Confirm password","new-password","Type it again")}
       <button class="cta" ${busy} onclick="doSignUp()">Create your Wanana account</button>
       <div class="alinks">
         <button class="alink" onclick="authGo('signin')">Already on Wanana? Sign in</button>
@@ -537,7 +554,8 @@ function authBox(){
   if(S.authMode === "newpass") return `
     <div class="authbox">
       ${authMsgHtml() || `<p class="authmsg">Set a new password for your Wanana account.</p>`}
-      <div class="field"><label>New password</label><input id="a_pass" type="password" autocomplete="new-password" placeholder="At least 8 characters" /></div>
+      ${pwField("a_pass","New password","new-password","At least 8 characters")}
+      ${pwField("a_pass2","Confirm new password","new-password","Type it again")}
       <button class="cta" ${busy} onclick="doSetNewPassword()">Save new password</button>
       ${S.recovery ? `<div class="alinks"><button class="alink" onclick="S.recovery=false;setMsg(null);render()">Skip, keep my current password</button></div>` : ``}
     </div>`;
@@ -546,7 +564,7 @@ function authBox(){
     <div class="authbox">
       ${authMsgHtml()}
       <div class="field"><label>Email</label><input id="a_email" type="email" autocomplete="email" value="${email}" placeholder="you@example.com" /></div>
-      <div class="field"><label>Password</label><input id="a_pass" type="password" autocomplete="current-password" placeholder="Your password" /></div>
+      ${pwField("a_pass","Password","current-password","Your password")}
       <button class="cta" ${busy} onclick="doSignIn()">Sign in and make your call</button>
       <div class="alinks">
         <button class="alink" onclick="authGo('signup')">New here? Create your account</button>
@@ -648,14 +666,17 @@ const views = {
     </div>`;
   },
   create(){
+    const e = S.editMarket;
+    const cats = ["Entertainment","Culture","Sports","Food","Public events","Creator trends","Music awards","Tech","Lifestyle","African social conversations","Politics"];
     return `<div class="pad narrow">
-      <h2 class="tabtitle">Create a market</h2>
-      <p class="sub">Post any real world yes or no scenario. Our team reviews every market before it goes live. Creators earn 1% of the settled pool.</p>
-      <div class="field"><label>Your question</label><input id="cq" maxlength="200" placeholder="Will Davido headline the O2 Arena in 2026?" /></div>
-      <div class="field"><label>Category</label><select id="cc">${["Entertainment","Culture","Sports","Public events","Creator trends","Music awards","Tech","Lifestyle","African social conversations","Politics"].map(c=>`<option>${c}</option>`).join("")}</select></div>
-      <div class="field"><label>Resolution date</label><input id="ce" placeholder="Dec 31, 2026" /></div>
-      <div class="field"><label>Resolution source</label><input id="cs" placeholder="CAF website, INEC results, Grammy.com" /></div>
-      <button class="cta" onclick="submitMarket()">Launch market</button>
+      <h2 class="tabtitle">${e ? "Edit your market" : "Create a market"}</h2>
+      <p class="sub">${e ? "Your market goes back through review after you save changes." : "Post any real world yes or no scenario. Our team reviews every market before it goes live. Creators earn 1% of the settled pool."}</p>
+      <div class="field"><label>Your question</label><input id="cq" maxlength="200" placeholder="Will Davido headline the O2 Arena in 2026?" value="${e?esc(e.question):""}" /></div>
+      <div class="field"><label>Category</label><select id="cc">${cats.map(c=>`<option ${e&&e.category===c?"selected":""}>${c}</option>`).join("")}</select></div>
+      <div class="field"><label>Resolution date</label><input id="ce" placeholder="Dec 31, 2026" value="${e?esc(e.ends_on||""):""}" /></div>
+      <div class="field"><label>Resolution source</label><input id="cs" placeholder="CAF website, INEC results, Grammy.com" value="${e?esc(e.source||""):""}" /></div>
+      <button class="cta" onclick="submitMarket()">${e ? "Save changes" : "Launch market"}</button>
+      ${e ? `<div style="margin-top:10px"><button class="alink" onclick="S.editMarket=null;go('profile')">Cancel editing</button></div>` : ""}
       <p class="note">House rules: no forex, stocks, crypto or securities. Nothing involving harm to any person. Every market settles against a pre listed public source, with a 48 hour dispute window before payout. Markets that break the rules get taken down and voided.</p>
     </div>`;
   },
@@ -674,14 +695,14 @@ const views = {
           : c.status==="in_verification" ? "In verification"
           : c.status==="closed" ? "Awaiting result"
           : "Wins "+N(payout);
-        return `<div class="card" style="margin-bottom:12px">
-          <div style="font-family:var(--disp);font-weight:600;font-size:14.5px;line-height:1.4;margin-bottom:10px">${esc(c.question)}</div>
+        return `<div class="card" style="margin-bottom:12px;cursor:pointer" onclick="openDetail(${c.market_id})" role="button" aria-label="Open this market">
+          <div style="font-family:var(--disp);font-weight:600;font-size:14.5px;line-height:1.4;margin-bottom:10px">${esc(c.question)} <span style="color:var(--slate);font-weight:400;font-size:12px">\u2192</span></div>
           <div style="display:flex;justify-content:space-between;align-items:center;font-size:13px;flex-wrap:wrap;gap:6px">
             <span style="color:${c.side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700">${c.side} @ ${price}%</span>
             <span style="color:var(--slate)">Staked ${N(c.amount)}</span>
             <span style="color:${won||["live","dispute_window"].includes(c.status)?"var(--glow)":"var(--slate)"};font-weight:700">${stateLabel}</span>
           </div>
-          ${c.status==="dispute_window" ? `<div style="margin-top:10px"><button class="alink" onclick="openDispute(${c.market_id||0}, '${esc(c.question).replace(/'/g,"&#39;")}')">Something wrong? Open a dispute</button></div>` : ""}
+          ${c.status==="dispute_window" ? `<div style="margin-top:10px"><button class="alink" onclick="event.stopPropagation();openDispute(${c.market_id||0}, '${esc(c.question).replace(/'/g,"&#39;")}')">Something wrong? Open a dispute</button></div>` : ""}
         </div>`;
       }).join("")}
     </div>`;
@@ -737,6 +758,36 @@ const views = {
         <div class="stat"><div class="l">Markets created</div><div class="v">${o.markets_created}</div></div>
         <div class="stat"><div class="l">Settled</div><div class="v">${o.settled_calls}</div></div>
         <div class="stat"><div class="l">Nice reads</div><div class="v" style="color:var(--teal)">${o.wins}</div></div>
+      </div>
+      <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
+        <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Your markets</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${S.myMarkets.length?"12px":"0"}">Every market you created, and where it is in the pipeline. Creators earn 1% of the settled pool.</div>
+        ${S.myMarkets.length===0 ? `<div style="font-size:12.5px;color:var(--slate)">Nothing yet. <button class="alink" onclick="go('create')">Create your first market</button></div>` :
+          S.myMarkets.map(m=>{
+            const scol = {pending_review:"var(--orange)",approved:"var(--glow)",live:"var(--teal)",closed:"var(--slate)",in_verification:"var(--glow)",dispute_window:"var(--coral)",settled:"var(--teal)",rejected:"var(--coral)",cancelled:"var(--slate)",draft:"var(--slate)"}[m.status]||"var(--slate)";
+            const editable = ["draft","pending_review","rejected"].includes(m.status) && m.calls===0;
+            const cancellable = !["settled","cancelled","rejected"].includes(m.status) && !editable;
+            const acts = [];
+            if(editable){
+              acts.push(`<button class="chip" onclick="editMyMarket(${m.id})">Edit</button>`);
+              acts.push(`<button class="chip" onclick="deleteMyMarket(${m.id})">Delete</button>`);
+            }
+            if(["live","closed","in_verification","dispute_window","settled"].includes(m.status))
+              acts.push(`<button class="chip" onclick="openDetail(${m.id})">View market</button>`);
+            if(cancellable){
+              acts.push(m.cancel_request_open
+                ? `<span class="cat" style="color:var(--glow)">Cancellation requested</span>`
+                : `<button class="chip" onclick="requestCancel(${m.id})">Request cancellation</button>`);
+            }
+            return `<div style="padding:10px 0;border-top:1px solid var(--line)">
+              <div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline;flex-wrap:wrap">
+                <span style="font-size:13px;font-weight:600;flex:1;min-width:180px">${esc(m.question)}</span>
+                <span class="cat" style="color:${scol};white-space:nowrap">${m.status.replace(/_/g," ").toUpperCase()}</span>
+              </div>
+              <div style="font-size:12px;color:var(--slate);margin-top:4px">${m.category} \u00b7 pool ${N((m.yes_pool||0)+(m.no_pool||0))} \u00b7 ${m.calls} call${m.calls===1?"":"s"} \u00b7 ${m.comments||0} comment${m.comments===1?"":"s"}</div>
+              ${acts.length?`<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;align-items:center">${acts.join("")}</div>`:""}
+            </div>`;
+          }).join("")}
       </div>
       <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
@@ -804,7 +855,7 @@ const views = {
     return `<div class="pad">
       <h2 class="tabtitle">Admin</h2>
       <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
-      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
+      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
           ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
@@ -819,6 +870,15 @@ const views = {
           <div style="font-size:12.5px;color:var(--slate);margin-bottom:10px"><b style="color:var(--glow)">${esc(d.username)}</b>: ${esc(d.reason)}</div>
           <div class="row" style="margin-bottom:0"><button class="btn-yes" onclick="adminAct('admin_dispute_decide',${d.id})">Mark reviewed</button></div>
         </div>`).join("") : `<div class="empty">No open disputes.</div>`) : ""}
+      ${A.panel==="cancelreqs" ? (A.cancelReqs.length ? A.cancelReqs.map(r=>`<div class="card" style="margin-bottom:12px">
+          <div class="q" style="font-size:14px">${esc(r.question)}</div>
+          <div style="font-size:12.5px;color:var(--slate);margin-bottom:6px"><b style="color:var(--glow)">${esc(r.requested_by)}</b> asks to cancel: ${esc(r.reason)}</div>
+          <div style="font-size:12px;color:var(--slate);margin-bottom:10px">Status ${r.market_status.replace(/_/g," ")} \u00b7 pool ${N((r.yes_pool||0)+(r.no_pool||0))} \u00b7 ${r.calls} call${r.calls==1?"":"s"} \u00b7 approving refunds every caller in full</div>
+          <div class="row" style="margin-bottom:0">
+            <button class="btn-yes" onclick="cancelReqDecide(${r.id},true)">Approve &amp; refund</button>
+            <button class="btn-no" onclick="cancelReqDecide(${r.id},false)">Decline</button>
+          </div>
+        </div>`).join("") : `<div class="empty">No cancellation requests waiting.</div>`) : ""}
       ${A.panel==="ledger" ? `<input placeholder="Filter by user, type or note" value="${esc(A.q)}" onchange="S.admin.q=this.value;renderMain()" style="margin-bottom:10px" />
       <div class="card">${A.ledger.filter(l=>!A.q||(l.username+" "+l.transaction_type+" "+(l.notes||"")).toLowerCase().includes(A.q.toLowerCase())).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
           <span><b style="color:var(--glow)">${esc(l.username)}</b> ${l.transaction_type.replace(/_/g," ")} <span style="color:var(--slate)">${esc(l.notes||"")}</span></span>
@@ -916,6 +976,17 @@ function detailSheet(){
       <div class="bar" style="height:9px"><div class="y" style="width:${y}%"></div><div class="n"></div><div class="spark" style="left:${y}%"></div></div>
       <div style="display:flex;justify-content:space-between;font-family:var(--disp);font-size:13.5px;font-weight:600;margin-bottom:16px">
         <span style="color:var(--teal)">YES ${y}%</span><span style="color:var(--coral)">NO ${100-y}%</span></div>
+      ${(()=>{ const mine = S.myCalls.filter(c=>c.market_id===m.id);
+        if(!mine.length) return "";
+        const yes = mine.filter(c=>c.side==="YES").reduce((s,c)=>s+c.amount,0);
+        const no  = mine.filter(c=>c.side==="NO").reduce((s,c)=>s+c.amount,0);
+        const bits = [];
+        if(yes) bits.push(`<b style="color:var(--teal)">${N(yes)} on YES</b>`);
+        if(no)  bits.push(`<b style="color:var(--coral)">${N(no)} on NO</b>`);
+        return `<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:10px 14px;font-size:12.5px;margin-bottom:14px">
+          <span style="color:var(--slate)">Your position:</span> ${bits.join(`<span style="color:var(--slate)"> · </span>`)}
+          <span style="color:var(--slate)"> across ${mine.length} call${mine.length>1?"s":""}. New calls join at the live crowd price and add to your position.</span>
+        </div>`; })()}
       <div class="row">
         <button class="btn-yes" style="background:var(--teal);color:var(--indigo)" onclick="openTrade(${m.id},'YES')">Call YES</button>
         <button class="btn-no" style="background:var(--coral);color:var(--indigo)" onclick="openTrade(${m.id},'NO')">Call NO</button>
@@ -1090,6 +1161,8 @@ window.doSignUp = async ()=>{
   const pass = (document.getElementById("a_pass")||{}).value || "";
   if(!email.includes("@")) { setMsg("Enter a valid email address", true); return render(); }
   if(pass.length < 8) { setMsg("Password needs at least 8 characters", true); return render(); }
+  const pass2 = (document.getElementById("a_pass2")||{}).value || "";
+  if(pass !== pass2) { setMsg("Passwords do not match. Type the same password in both boxes.", true); return render(); }
   S.busy = true; render();
   const { data, error } = await sb.auth.signUp({ email, password: pass,
     options: { emailRedirectTo: location.origin } });
@@ -1148,6 +1221,8 @@ window.doSendReset = async ()=>{
 window.doSetNewPassword = async ()=>{
   const pass = (document.getElementById("a_pass")||{}).value || "";
   if(pass.length < 8){ setMsg("Password needs at least 8 characters", true); return render(); }
+  const pass2 = (document.getElementById("a_pass2")||{}).value || "";
+  if(pass !== pass2){ setMsg("Passwords do not match. Type the same password in both boxes.", true); return render(); }
   S.busy = true; render();
   const { error } = await sb.auth.updateUser({ password: pass });
   S.busy = false;
@@ -1178,18 +1253,27 @@ window.doSignOut = async ()=>{
 window.S = S;
 window.render = render;
 window.setMsg = setMsg;
-window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null;
+window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();
   if(t==="insights") await loadBoard();
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
   if(t==="home" || t==="wallet" || t==="calls") checkWins();
-  if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null; }
+  if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null;
+    const mm = await rpc("my_markets"); S.myMarkets = Array.isArray(mm) ? mm : []; }
   if(t==="admin") await loadAdmin();
   render(); };
 window.renderMain = ()=>{ document.getElementById("main").innerHTML = views[S.tab]();
   const q=document.querySelector('#main .toolbar input'); if(q&&S.tab==="home"&&S.query){q.focus();q.setSelectionRange(q.value.length,q.value.length);} };
-window.openDetail = async (id)=>{ S.detail = S.markets.find(m=>m.id===id); await loadComments(id); render(); };
+window.openDetail = async (id)=>{
+  let m = S.markets.find(x=>x.id===id);
+  if(!m){
+    const { data } = await sb.from("markets").select("*").eq("id", id).maybeSingle();
+    if(data) m = data;
+  }
+  if(!m) return toast("This market is not available right now");
+  S.detail = m; await loadComments(id); render();
+};
 window.openTrade = (id, side)=>{ S.trade = { m:S.markets.find(x=>x.id===id)||S.detail, side }; render(); };
 window.updatePayout = (price)=>{ const v=parseInt(document.getElementById("stake").value,10);
   document.getElementById("payout").innerHTML = v>=500 ? `If your read lands you collect <b style="color:var(--glow)">${N(Math.round(v*100/Math.max(price,1)))}</b>` : ""; };
@@ -1208,12 +1292,47 @@ window.submitMarket = async ()=>{
   if(q.trim().length<15) return toast("Write a clear yes or no question first");
   if(!e.trim()) return toast("Set a resolution date");
   if(!s.trim()) return toast("Name a public source that settles it");
+  if(S.editMarket){
+    const r = await rpc("market_update_own", { p_market_id:S.editMarket.id, p_question:q, p_category:c, p_ends_on:e, p_source:s });
+    if(r.error) return toast(r.error);
+    S.editMarket = null; await loadMarkets(); await go("profile");
+    return toast(r.message || "Saved. Your market goes back through review before going live");
+  }
   const r = await rpc("market_create", { p_question:q, p_category:c, p_ends_on:e, p_source:s });
   if(r.error) return toast(r.error);
   await loadMarkets();
   if(r.decision === "auto_approved"){ S.tab="home"; render(); }
   else { render(); }
   toast(r.message || "Submitted. Your market goes live once our team approves it");
+};
+window.editMyMarket = (id)=>{
+  const m = S.myMarkets.find(x=>x.id===id); if(!m) return;
+  S.editMarket = m; S.tab = "create"; render();
+};
+window.deleteMyMarket = async (id)=>{
+  const m = S.myMarkets.find(x=>x.id===id); if(!m) return;
+  if(!confirm(`Delete this market?\n\n"${m.question}"\n\nThis cannot be undone.`)) return;
+  const r = await rpc("market_delete_own", { p_market_id:id });
+  if(r.error) return toast(r.error);
+  S.myMarkets = S.myMarkets.filter(x=>x.id!==id);
+  render(); toast("Market deleted");
+};
+window.requestCancel = async (id)=>{
+  const m = S.myMarkets.find(x=>x.id===id); if(!m) return;
+  const reason = prompt(`Why should this market be cancelled?\n\n"${m.question}"\n\nAn admin reviews every request. If approved, everyone who made a call is refunded in full.`);
+  if(reason===null) return;
+  if(reason.trim().length<5) return toast("Give a short reason (at least 5 characters)");
+  const r = await rpc("market_cancel_request", { p_market_id:id, p_reason:reason.trim() });
+  if(r.error) return toast(r.error);
+  m.cancel_request_open = true; render();
+  toast(r.message || "Request sent. An admin will review it shortly");
+};
+window.cancelReqDecide = async (id, approve)=>{
+  if(approve && !confirm("Approve cancellation? Every caller on this market is refunded in full and the market is voided.")) return;
+  const r = await rpc("admin_cancel_request_decide", { p_request_id:id, p_approve:approve, p_note:null });
+  if(r.error) return toast(r.error);
+  await loadAdmin(); renderMain();
+  toast(approve ? `Cancelled and refunded ${r.refunded_people} caller${r.refunded_people==1?"":"s"}` : "Request declined");
 };
 window.postComment = async ()=>{
   const b = document.getElementById("cbody").value;
