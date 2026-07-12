@@ -615,6 +615,24 @@ function heroView(){
         ${previews}
       </div>` : ""}
     </div>
+    <div class="hero-in" style="display:block;max-width:960px;margin:0 auto;padding-top:0">
+      <div style="font-family:var(--disp);font-weight:700;font-size:22px;margin:26px 0 4px">How to play</div>
+      <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px;line-height:1.6">Five steps. No house, no luck \u2014 just your read against the crowd.</p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
+        ${[
+          ["Create your account","Sign up with your email and claim your Oracle name. You start with \u20A650,000 demo credits \u2014 no card, no deposit."],
+          ["Pick an argument","Browse the arenas \u2014 football, gist, jollof, tech, music. Every market is a real-world YES or NO question with a named public source."],
+          ["Make your call","Back YES or NO with demo credits, \u20A6500 minimum. The crowd price shows where everyone leans \u2014 your edge is reading it better."],
+          ["The outcome gets verified","When the event concludes, the result is checked against the market's public source, then a 48-hour dispute window opens before anything pays out."],
+          ["Winners share the pool","Call it right and take your share of the settled pool, split by stake. Wanana takes 5%, the market creator earns 1%, and the house never plays against you."],
+        ].map((s,i)=>`<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--orange);color:var(--indigo);font-family:var(--disp);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;margin-bottom:10px">${i+1}</div>
+          <div style="font-family:var(--disp);font-weight:600;font-size:14.5px;margin-bottom:6px">${s[0]}</div>
+          <div style="font-size:12.5px;color:var(--slate);line-height:1.65">${s[1]}</div>
+        </div>`).join("")}
+      </div>
+      <p style="font-size:12.5px;color:var(--slate);line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path \u2014 Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend \u2014 with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
+    </div>
   </div>`;
 }
 
