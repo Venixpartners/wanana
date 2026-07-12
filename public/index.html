@@ -608,7 +608,7 @@ function heroView(){
         <h1>Africa argues about everything. <span class="em">Wanana pays whoever is right.</span></h1>
         <p class="lead">Post a question, make your call, and get paid when you call it right. The crowd sets the price. Skill gets paid. Every result is verified.</p>
         ${authBox()}
-        <p class="note">Open beta on free starter credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:var(--slate)">Terms · Privacy · Responsible Play</a> · <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button></p>
+        <p class="note">Open beta on demo credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:var(--slate)">Terms · Privacy · Responsible Play</a> · <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button></p>
       </div>
       ${previews ? `<div class="hero-preview" aria-hidden="true">
         <div class="preview-label">Live on wanana right now</div>
@@ -767,7 +767,7 @@ const views = {
         <div style="font-size:12px;color:var(--slate);margin-top:6px">Signed in as <b style="color:var(--text)">${esc(S.profile.username)}</b>${S.session && S.session.user && S.session.user.email ? ` \u00b7 ${esc(S.session.user.email)}` : ""}</div>
       </div>
       <div class="row">
-        <button class="btn-yes" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="topUp()">Get free credits</button>
+        <button class="btn-yes" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="topUp()">Get demo credits</button>
         <button class="btn-yes" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="S.pay='deposit';render()">Deposit</button>
         <button class="btn-no" style="background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="S.pay='withdraw';render()">Withdraw</button>
       </div>
@@ -1085,7 +1085,7 @@ function victorySheet(){
         <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
         <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
       </div>`).join("")}
-      <button class="cta" style="margin-top:16px" onclick="winsSeen(${lastId})">Sweet</button>
+      <button class="cta" style="margin-top:16px" onclick="winsSeen(${lastId})">Collect am</button>
       <p class="note" style="margin-bottom:0">Every settlement is verified against a public source, with a 48 hour dispute window first.</p>
     </div></div>`;
 }
@@ -1310,7 +1310,7 @@ window.doProfileSetup = async ()=>{
   if(r.error){ setMsg(r.error, true); return render(); }
   S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
   setMsg(null); await loadMarkets(); render();
-  toast(`Welcome ${r.username}. You have ${N(r.balance)} starter credits`);
+  toast(`Welcome ${r.username}. ${N(r.balance)} demo credits to start. Make your call`);
 };
 window.doSignOut = async ()=>{
   await sb.auth.signOut();
@@ -1350,7 +1350,7 @@ window.updatePayout = (price)=>{ const v=parseInt(document.getElementById("stake
   document.getElementById("payout").innerHTML = v>=500 ? `If your read lands you collect <b style="color:var(--glow)">${N(Math.round(v*100/Math.max(price,1)))}</b>` : ""; };
 window.confirmStake = async ()=>{
   const v = parseInt(document.getElementById("stake").value,10);
-  if(!v||v<500) return toast("Minimum stake is \u20A6500");
+  if(!v||v<500) return toast("Minimum call is \u20A6500");
   const r = await rpc("call_place", { p_market_id:S.trade.m.id, p_side:S.trade.side, p_amount:v });
   if(r.error) return toast(r.error);
   S.profile.balance = r.balance; const side=S.trade.side; S.trade=null; S.detail=null;
@@ -1388,7 +1388,7 @@ window.deleteMyMarket = async (id)=>{
   const r = await rpc("market_delete_own", { p_market_id:id });
   if(r.error) return toast(r.error);
   S.myMarkets = S.myMarkets.filter(x=>x.id!==id);
-  render(); toast("Market deleted");
+  render(); toast("Market deleted. Run it back whenever you are ready");
 };
 window.requestCancel = async (id)=>{
   const m = S.myMarkets.find(x=>x.id===id); if(!m) return;
@@ -1570,7 +1570,7 @@ window.copyRef = ()=>{
 window.topUp = async ()=>{
   const r = await rpc("wallet_top_up");
   if(r.error) return toast(r.error);
-  S.profile.balance = r.balance; render(); toast("\u20A650,000 free credits added");
+  S.profile.balance = r.balance; render(); toast("\u20A650,000 demo credits added. Make your call");
 };
 
 window.toggleReviewEngine = async ()=>{
