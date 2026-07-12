@@ -262,6 +262,16 @@ const S = {
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
 /* Arena skin: display names only — category values and legal vocabulary never change */
 const ARENA = { "All":"All arenas", "Politics":"Hot Takes Room", "Sports":"Football Arena", "Entertainment":"Gist Arena", "Music awards":"The Aux", "Tech":"Tech Corner", "Culture":"Naija Trends", "Food":"Jollof Wars", "Lifestyle":"Soft Life" };
+/* Canonical resolution-date format: "Jul 19, 2026". Picker value (ISO) <-> display */
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+function dateNice(iso){ /* "2026-07-19" -> "Jul 19, 2026" */
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso||""); if(!m) return "";
+  return `${MONTHS[+m[2]-1]} ${+m[3]}, ${m[1]}`; }
+function dateISO(txt){ /* best-effort "Dec 31, 2026" -> "2026-12-31" for the edit prefill */
+  const d = new Date(txt||""); if(isNaN(d)) return "";
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
+function todayISO(){ const d=new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`; }
 const TIERS = ["Rookie","Sharp Eye","Trend Spotter","Oracle","Wanana Legend"];
 const TIER_COLOR = { "Rookie":"var(--slate)", "Sharp Eye":"var(--glow)", "Trend Spotter":"var(--teal)", "Oracle":"var(--orange)", "Wanana Legend":"var(--coral)" };
 const TIER_NEXT = {
@@ -696,7 +706,7 @@ const views = {
       <p class="sub">${e ? "Your market goes back through review after you save changes." : "Post any real world yes or no scenario. Our team reviews every market before it goes live. Creators earn 1% of the settled pool."}</p>
       <div class="field"><label>Your question</label><input id="cq" maxlength="200" placeholder="Will Davido headline the O2 Arena in 2026?" value="${e?esc(e.question):""}" /></div>
       <div class="field"><label>Category</label><select id="cc">${cats.map(c=>`<option ${e&&e.category===c?"selected":""}>${c}</option>`).join("")}</select></div>
-      <div class="field"><label>Resolution date</label><input id="ce" placeholder="Dec 31, 2026" value="${e?esc(e.ends_on||""):""}" /></div>
+      <div class="field"><label>Resolution date</label><input id="ce" type="date" min="${todayISO()}" value="${e?dateISO(e.ends_on):""}" /></div>
       <div class="field"><label>Resolution source</label><input id="cs" placeholder="CAF website, INEC results, Grammy.com" value="${e?esc(e.source||""):""}" /></div>
       <button class="cta" onclick="submitMarket()">${e ? "Save changes" : "Launch market"}</button>
       ${e ? `<div style="margin-top:10px"><button class="alink" onclick="S.editMarket=null;go('profile')">Cancel editing</button></div>` : ""}
@@ -1332,15 +1342,17 @@ window.submitMarket = async ()=>{
   const q=document.getElementById("cq").value, c=document.getElementById("cc").value,
         e=document.getElementById("ce").value, s=document.getElementById("cs").value;
   if(q.trim().length<15) return toast("Write a clear yes or no question first");
-  if(!e.trim()) return toast("Set a resolution date");
-  if(!s.trim()) return toast("Name a public source that settles it");
+  if(!e.trim()) return toast("Pick a resolution date");
+  if(e.trim() < todayISO()) return toast("The resolution date needs to be in the future");
+  const eNice = dateNice(e.trim());
+  if(!eNice) return toast("Pick a resolution date from the calendar");
   if(S.editMarket){
-    const r = await rpc("market_update_own", { p_market_id:S.editMarket.id, p_question:q, p_category:c, p_ends_on:e, p_source:s });
+    const r = await rpc("market_update_own", { p_market_id:S.editMarket.id, p_question:q, p_category:c, p_ends_on:eNice, p_source:s });
     if(r.error) return toast(r.error);
     S.editMarket = null; await loadMarkets(); await go("profile");
     return toast(r.message || "Saved. Your market goes back through review before going live");
   }
-  const r = await rpc("market_create", { p_question:q, p_category:c, p_ends_on:e, p_source:s });
+  const r = await rpc("market_create", { p_question:q, p_category:c, p_ends_on:eNice, p_source:s });
   if(r.error) return toast(r.error);
   await loadMarkets();
   if(r.decision === "auto_approved"){ S.tab="home"; render(); }
