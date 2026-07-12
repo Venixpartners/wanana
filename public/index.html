@@ -260,6 +260,19 @@ const S = {
   myMarkets: [], editMarket: null,
 };
 const CATS = ["All","Politics","Sports","Entertainment","Tech","Culture","Food"];
+/* Arena skin: display names only — category values and legal vocabulary never change */
+const ARENA = { "All":"All arenas", "Politics":"Hot Takes Room", "Sports":"Football Arena", "Entertainment":"Gist Arena", "Tech":"Tech Corner", "Culture":"Naija Trends", "Food":"Jollof Wars" };
+const TIERS = ["Rookie","Sharp Eye","Trend Spotter","Oracle","Wanana Legend"];
+const TIER_COLOR = { "Rookie":"var(--slate)", "Sharp Eye":"var(--glow)", "Trend Spotter":"var(--teal)", "Oracle":"var(--orange)", "Wanana Legend":"var(--coral)" };
+const TIER_NEXT = {
+  "Rookie":"Sharp Eye unlocks at 3 settled calls with a 50% read rate.",
+  "Sharp Eye":"Trend Spotter unlocks at 5 settled calls with a 55% read rate.",
+  "Trend Spotter":"Oracle unlocks at 10 settled calls with a 60% read rate.",
+  "Oracle":"Wanana Legend unlocks at 25 settled calls with a 65% read rate.",
+  "Wanana Legend":"You are at the top of the path. Defend it." };
+function tierBadge(tier, size){ if(!tier) return "";
+  return `<span class="cat" style="color:${TIER_COLOR[tier]||"var(--slate)"};${size?`font-size:${size}px;`:""}white-space:nowrap">${tier.toUpperCase()}</span>`; }
+function streakFire(n){ n = Number(n)||0; return n >= 2 ? `<span style="white-space:nowrap" title="${n} correct calls in a row">\u{1F525} ${n}</span>` : ""; }
 const N = n => "\u20A6" + Number(n||0).toLocaleString("en-NG");
 const esc = s => String(s).replace(/[&<>\"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const yesPct = m => { const t = m.yes_pool + m.no_pool; return t === 0 ? 50 : Math.round(m.yes_pool*100/t); };
@@ -626,7 +639,7 @@ const views = {
       (!S.query||m.question.toLowerCase().includes(S.query.toLowerCase())));
     return `
     <div class="toolbar"><input placeholder="Search markets" value="${esc(S.query)}" oninput="S.query=this.value;renderMain()" aria-label="Search markets" /></div>
-    <div class="chips">${CATS.map(c=>`<button class="chip ${c===S.cat?"on":""}" onclick="S.cat='${c}';renderMain()">${c}</button>`).join("")}</div>
+    <div class="chips">${CATS.map(c=>`<button class="chip ${c===S.cat?"on":""}" onclick="S.cat='${c}';renderMain()">${ARENA[c]||c}</button>`).join("")}</div>
     <div class="feed">
       ${list.map(m=>marketCard(m)).join("") || `<div class="empty">No open markets yet. Ask something Africa will argue about.</div>`}
     </div>`;
@@ -652,17 +665,27 @@ const views = {
       <div class="aicard"><div class="t">Your Edge · Wanana AI</div>
         <p>${wananaAI.edge(S.myCalls)}</p>
       </div>
+      ${(()=>{ const o = S.overview; if(!o) return "";
+        const idx = Math.max(0, TIERS.indexOf(o.rank_tier));
+        return `<div style="background:var(--card);border:1px solid var(--line);border-top:3px solid ${TIER_COLOR[o.rank_tier]||"var(--orange)"};border-radius:8px;padding:16px;margin:14px 0">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:10px">
+            <div style="font-family:var(--disp);font-weight:600;font-size:14px">The Oracle path</div>
+            <div style="display:flex;gap:10px;align-items:center">${streakFire(o.current_streak)}${tierBadge(o.rank_tier)}</div>
+          </div>
+          <div style="display:flex;gap:4px;margin-bottom:10px">${TIERS.map((tt,i)=>`<div style="flex:1;height:6px;border-radius:3px;background:${i<=idx?(TIER_COLOR[o.rank_tier]||"var(--orange)"):"var(--line)"}"></div>`).join("")}</div>
+          <div style="font-size:12.5px;color:var(--slate);line-height:1.6">${esc(TIER_NEXT[o.rank_tier]||"")} Rank grows from settled-call accuracy only \u2014 read it right, climb the path.${Number(o.best_streak)>=2?` Best streak: ${o.best_streak} in a row.`:""}</div>
+        </div>`; })()}
       <div style="font-family:var(--disp);font-weight:600;font-size:15px;margin:6px 0 10px">Top Oracles</div>
       ${S.board.length===0 ? `<div class="empty">The leaderboard fills up as markets settle. Be early.</div>` :
         S.board.map((o,i)=>`<div style="display:flex;align-items:center;gap:12px;padding:10px 2px;border-bottom:1px solid var(--line);font-size:13px">
           <span style="font-family:var(--disp);font-weight:700;color:${i===0?"var(--orange)":i<3?"var(--glow)":"var(--slate)"};min-width:26px">#${i+1}</span>
           ${avatarHtml(o.avatar_url, o.username, 28)}
           <span style="flex:1;min-width:0"><b style="color:var(--text)">${esc(o.username)}</b>
-            ${o.rank_tier==="Oracle" ? ` <span class="cat" style="color:var(--orange)">ORACLE</span>` : ""}
+            ${o.rank_tier && o.rank_tier!=="Rookie" ? ` ${tierBadge(o.rank_tier, 9)}` : ""}${Number(o.current_streak)>=3 ? ` ${streakFire(o.current_streak)}` : ""}
             <span style="color:var(--slate)"> · ${o.wins}/${o.settled_calls} settled · ${o.accuracy}% read rate${o.best_streak>1?` · streak ${o.best_streak}`:""}${o.top_category?` · ${o.top_category}`:""} · ${o.total_calls} calls</span></span>
           <b style="color:var(--teal);white-space:nowrap">${N(o.total_won)}</b>
         </div>`).join("")}
-      <p class="note">Oracle rank unlocks at ten settled calls with a 60% read rate. Read the moment better than the crowd and climb.</p>
+      <p class="note">The path: Rookie \u2192 Sharp Eye \u2192 Trend Spotter \u2192 Oracle \u2192 Wanana Legend. Every level is earned by settled-call accuracy, never volume. Read the moment better than the crowd and climb.</p>
     </div>`;
   },
   create(){
@@ -745,8 +768,8 @@ const views = {
       <div style="background:var(--card);border:1px solid var(--line);border-top:3px solid var(--orange);border-radius:8px;padding:20px;margin-bottom:14px;display:flex;gap:16px;align-items:center;flex-wrap:wrap">
         ${avatarHtml(o.avatar_url, o.username, 72)}
         <div style="flex:1;min-width:180px">
-          <div style="font-family:var(--disp);font-weight:700;font-size:22px">${esc(o.username)}</div>
-          <div style="font-size:12px;color:var(--slate);margin-top:2px">${S.session && S.session.user ? esc(S.session.user.email||"") : ""} \u00b7 Oracle since ${esc(o.member_since)}</div>
+          <div style="font-family:var(--disp);font-weight:700;font-size:22px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">${esc(o.username)} ${tierBadge(o.rank_tier,10)} ${streakFire(o.current_streak)}</div>
+          <div style="font-size:12px;color:var(--slate);margin-top:2px">${S.session && S.session.user ? esc(S.session.user.email||"") : ""} \u00b7 Oracle since ${esc(o.member_since)}${Number(o.settled_calls)>0?` \u00b7 ${o.accuracy}% read rate`:""}</div>
           <div style="margin-top:10px">
             <label class="chip" style="cursor:pointer;display:inline-block">Change photo
               <input id="av_file" type="file" accept="image/png,image/jpeg,image/webp" style="display:none" onchange="uploadAvatar(this)" /></label>
@@ -1256,7 +1279,7 @@ window.setMsg = setMsg;
 window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();
-  if(t==="insights") await loadBoard();
+  if(t==="insights"){ await loadBoard(); const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : S.overview; }
   if(t==="wallet"){ await loadProfile(); await loadLedger(); }
   if(t==="home" || t==="wallet" || t==="calls") checkWins();
   if(t==="profile"){ const o = await rpc("profile_overview"); S.overview = o && !o.error ? o : null;
