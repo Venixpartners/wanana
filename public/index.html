@@ -3,13 +3,13 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>wanana — Africa argues about everything. Wanana pays whoever is right.</title>
+<title>wanana | Africa argues about everything. Wanana pays whoever is right.</title>
 <meta name="description" content="Wanana is a peer prediction marketplace where the crowd sets the price, skill gets paid, and every result is verified. A game of skill. 18+ only." />
 <meta name="theme-color" content="#0B0E31" />
 <link rel="icon" type="image/png" sizes="32x32" href="/brand/favicon-32.png" />
 <link rel="apple-touch-icon" href="/brand/apple-touch-icon.png" />
 <link rel="manifest" href="/manifest.json" />
-<meta property="og:title" content="wanana — call it before it happens" />
+<meta property="og:title" content="wanana | call it before it happens" />
 <meta property="og:description" content="Africa argues about everything. Wanana pays whoever is right." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -260,7 +260,7 @@ const S = {
   myMarkets: [], editMarket: null, badges: [], weekBoard: null, boardMode: "week",
 };
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
-/* Arena skin: display names only — category values and legal vocabulary never change */
+/* Arena skin: display names only - category values and legal vocabulary never change */
 const ARENA = { "All":"All arenas", "Politics":"Hot Takes Room", "Sports":"Football Arena", "Entertainment":"Gist Arena", "Music awards":"The Aux", "Tech":"Tech Corner", "Culture":"Naija Trends", "Food":"Jollof Wars", "Lifestyle":"Soft Life" };
 /* Canonical resolution-date format: "Jul 19, 2026". Picker value (ISO) <-> display */
 const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
@@ -395,29 +395,29 @@ const wananaBot = {
   external: null,
   guards: [
     { re: /(which|what|who)[^.?!]{0,30}(call|side|pick|team|option)[^.?!]{0,20}(make|choose|take|back)|should i (call|stake|pick|back|go)|(recommend|tip|sure)[^.?!]{0,15}(call|pick|market|win)|who (will|go|is going to) win|guarantee[ds]? (win|outcome|profit)?/i,
-      text: "That call is yours to make \u2014 that is the whole game. I stay neutral on every market and never recommend a side or guarantee an outcome. What I can do is explain how crowd prices, pools and verified settlement work, so your own read gets sharper." },
+      text: "That call is yours to make. That is the whole game. I stay neutral on every market and never recommend a side or guarantee an outcome. What I can do is explain how crowd prices, pools and verified settlement work, so your own read gets sharper." },
     { re: /\b(forex|fx)\b|\bstocks?\b|\bshares?\b|crypto\w*|\bbitcoin\b|\bethereum\b|securit(y|ies)|\binvest(ment|ing|or)?s?\b|trading signal|binary option/i,
-      text: "Wanana never hosts forex, stock, crypto or securities markets, and I cannot give financial or investment advice of any kind. Wanana is a game of skill about culture, sport, entertainment, tech and public life \u2014 played entirely in demo credits." },
+      text: "Wanana never hosts forex, stock, crypto or securities markets, and I cannot give financial or investment advice of any kind. Wanana is a game of skill about culture, sport, entertainment, tech and public life, played entirely in demo credits." },
     { re: /legal advice|\bsue\b|lawyer|lawsuit|medical|diagnos|prescri|symptom|treatment for/i,
       text: 'I cannot give legal or medical advice. For anything about your Wanana account, please contact <a href="mailto:support@wanana.africa" style="color:var(--glow)">support@wanana.africa</a> and a member of the Wanana team will review this.' },
     { re: /overrid\w*[^.?!]{0,20}(admin|decision|outcome)|settle (my|the|this) dispute|approve (my|this) market|secret key|api key|service.role|\bpassword\b|other (user|person)\w*[^.?!]{0,12}(data|email|balance|detail)/i,
       text: 'I cannot override admin decisions, settle disputes, approve markets, or access keys or private user data. Market review, dispute decisions and settlement are handled by the Wanana team, and every referee action is written to an audit log. If you disagree with a decision, email <a href="mailto:support@wanana.africa" style="color:var(--glow)">support@wanana.africa</a>.' },
   ],
   topics: [
-    ["make_a_call", /how[^.?!]{0,15}(make|place)[^.?!]{0,10}call|how do i (play|stake|start)/i, "Open any live market, tap Call YES or Call NO, and stake at least \u20A6500 in demo credits. The YES/NO split you see is the live crowd price \u2014 the crowd sets it, not a house. The best returns come from calling early and being right."],
-    ["demo_wallet", /demo (wallet|balance|credit)|wallet work|ngn.?demo|real money|is this real|cash value/i, "Every balance on Wanana today is NGN_DEMO \u2014 demo credits with no cash value. You get starter credits when you sign up, and everything you stake or win is demo. Real-money features only arrive after licensing, identity verification and payment review are complete."],
+    ["make_a_call", /how[^.?!]{0,15}(make|place)[^.?!]{0,10}call|how do i (play|stake|start)/i, "Open any live market, tap Call YES or Call NO, and stake at least \u20A6500 in demo credits. The YES/NO split you see is the live crowd price. The crowd sets it, not a house. The best returns come from calling early and being right."],
+    ["demo_wallet", /demo (wallet|balance|credit)|wallet work|ngn.?demo|real money|is this real|cash value/i, "Every balance on Wanana today is NGN_DEMO: demo credits with no cash value. You get starter credits when you sign up, and everything you stake or win is demo. Real-money features only arrive after licensing, identity verification and payment review are complete."],
     ["payments", /payment|deposit|withdraw|paystack|flutterwave|cash out|top up|fund my/i, "Payments are not live yet, on purpose. Wanana switches on real deposits and withdrawals only after licensing, full KYC and payment review are done. Until then everything runs on NGN_DEMO credits, so you can learn the full game risk-free."],
-    ["create_market", /creat\w*[^.?!]{0,12}market|market creation|post[^.?!]{0,10}(question|market)|my own market/i, "Go to Create, write a clear yes-or-no question about a real-world event, set the resolution date, and name a public source that settles it \u2014 official results, announcements or published records. Every market is reviewed before it goes live, and creators earn 1% of the pool when it settles."],
-    ["review", /why[^.?!]{0,40}review|go(es)? through review|market[^.?!]{0,12}(pending|approved|rejected|stuck)|how long[^.?!]{0,15}review/i, "Every market goes through review before it goes live. That keeps markets clear, verifiable and inside the rules \u2014 no financial markets, no harmful topics, always a named public source. Clean markets are often auto-approved in seconds; anything unclear waits for the team."],
-    ["verified_outcome", /verified outcome|how[^.?!]{0,15}(verif|resolv)|who decides|outcome work/i, "When an event concludes, the outcome is checked against the public source named when the market was created. The market then enters a 48-hour dispute window before any payout moves. Discussion and comments never influence official settlement \u2014 only the named public source does."],
+    ["create_market", /creat\w*[^.?!]{0,12}market|market creation|post[^.?!]{0,10}(question|market)|my own market/i, "Go to Create, write a clear yes-or-no question about a real-world event, set the resolution date, and name a public source that settles it: official results, announcements or published records. Every market is reviewed before it goes live, and creators earn 1% of the pool when it settles."],
+    ["review", /why[^.?!]{0,40}review|go(es)? through review|market[^.?!]{0,12}(pending|approved|rejected|stuck)|how long[^.?!]{0,15}review/i, "Every market goes through review before it goes live. That keeps markets clear, verifiable and inside the rules: no financial markets, no harmful topics, always a named public source. Clean markets are often auto-approved in seconds; anything unclear waits for the team."],
+    ["verified_outcome", /verified outcome|how[^.?!]{0,15}(verif|resolv)|who decides|outcome work/i, "When an event concludes, the outcome is checked against the public source named when the market was created. The market then enters a 48-hour dispute window before any payout moves. Discussion and comments never influence official settlement. Only the named public source does."],
     ["dispute", /dispute|disagree[^.?!]{0,20}outcome|wrong (result|outcome)|challenge (the|an) outcome|48.?hour/i, "After an outcome is proposed, a 48-hour dispute window opens and every participant is notified. If you have evidence the outcome is wrong, open a dispute from Your calls and point to the public source. Payouts cannot move before the window closes, and disputed markets always wait for human review."],
-    ["settlement", /settlement|payout|when do i get paid|share of the pool|winnings|how do (i|players) (make|win)/i, "When the dispute window closes, settlement runs automatically. Winners share 94% of the pool in proportion to their stakes \u2014 Wanana takes 5% and the market creator earns 1%. Your share lands in your demo wallet and shows in your ledger."],
-    ["referral", /referr?al|invite|refer a friend|invite code/i, "Your invite code lives in your Profile. Share it \u2014 when your person signs up and makes their first call, \u20A65,000 in demo credits lands in your wallet. One reward per referred player, all in NGN_DEMO."],
+    ["settlement", /settlement|payout|when do i get paid|share of the pool|winnings|how do (i|players) (make|win)/i, "When the dispute window closes, settlement runs automatically. Winners share 94% of the pool in proportion to their stakes. Wanana takes 5% and the market creator earns 1%. Your share lands in your demo wallet and shows in your ledger."],
+    ["referral", /referr?al|invite|refer a friend|invite code/i, "Your invite code lives in your Profile. Share it, and when your person signs up and makes their first call, \u20A65,000 in demo credits lands in your wallet. One reward per referred player, all in NGN_DEMO."],
     ["kyc", /\bkyc\b|verify[^.?!]{0,12}identity|\bbvn\b|\bnin\b|identity verification/i, "During open beta, identity verification is a placeholder: you submit your BVN or NIN and Wanana keeps only the last 4 digits, never the full number. Full KYC arrives with licensing, before any real-money feature switches on."],
-    ["oracle", /oracle|leaderboard|\brank\b|streak/i, "Reach 10 settled calls at a 60% read rate and you earn the ORACLE rank on the public leaderboard. Accuracy, streaks and winnings are computed from verified results only \u2014 no shortcuts."],
-    ["comments", /comment|discussion|community rules|report[^.?!]{0,12}(comment|post)/i, "Every market has a discussion. Keep it sound: no hate, harassment, personal attacks, private information, impersonation, spam or financial-market talk. Like useful takes, reply, and report anything harmful \u2014 the team reviews every report. Comments never influence settlement."],
+    ["oracle", /oracle|leaderboard|\brank\b|streak/i, "Reach 10 settled calls at a 60% read rate and you earn the ORACLE rank on the public leaderboard. Accuracy, streaks and winnings are computed from verified results only. No shortcuts."],
+    ["comments", /comment|discussion|community rules|report[^.?!]{0,12}(comment|post)/i, "Every market has a discussion. Keep it sound: no hate, harassment, personal attacks, private information, impersonation, spam or financial-market talk. Like useful takes, reply, and report anything harmful. The team reviews every report. Comments never influence settlement."],
     ["support", /support|human|contact|talk to (a )?(person|someone)|complain|delete my (data|account)|refund/i, 'Please contact <a href="mailto:support@wanana.africa" style="color:var(--glow)">support@wanana.africa</a> and a member of the Wanana team will review this. Include your Oracle name and, if it is about a market, the market question.'],
-    ["what_is_wanana", /what is wanana|about wanana|how does wanana work|what.s (this|wanana)|explain wanana/i, "Wanana is a peer prediction marketplace and game of skill. Someone posts a real-world yes-or-no question, the crowd stakes demo credits on YES or NO, and when the outcome is verified against a public source, whoever called it right is paid from the pool. The crowd, not the house \u2014 Wanana is the referee. 18+ only."],
+    ["what_is_wanana", /what is wanana|about wanana|how does wanana work|what.s (this|wanana)|explain wanana/i, "Wanana is a peer prediction marketplace and game of skill. Someone posts a real-world yes-or-no question, the crowd stakes demo credits on YES or NO, and when the outcome is verified against a public source, whoever called it right is paid from the pool. The crowd, not the house. Wanana is the referee. 18+ only."],
   ],
   async answer(q){
     for(const g of this.guards){ if(g.re.test(q)) return { text: g.text, topic: "guarded" }; }
@@ -618,12 +618,12 @@ function heroView(){
     </div>
     <div style="max-width:960px;margin:0 auto;padding:0 26px">
       <div style="font-family:var(--disp);font-weight:700;font-size:22px;margin:26px 0 4px">How to play</div>
-      <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px;line-height:1.6">Five steps. No house, no luck \u2014 just your read against the crowd.</p>
+      <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px;line-height:1.6">Five steps. No house, no luck. Just your read against the crowd.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
         ${[
-          ["Create your account","Sign up with your email and claim your Oracle name. You start with \u20A650,000 demo credits \u2014 no card, no deposit."],
-          ["Pick an argument","Browse the arenas \u2014 football, gist, jollof, tech, music. Every market is a real-world YES or NO question with a named public source."],
-          ["Make your call","Back YES or NO with demo credits, \u20A6500 minimum. The crowd price shows where everyone leans \u2014 your edge is reading it better."],
+          ["Create your account","Sign up with your email and claim your Oracle name. You start with \u20A650,000 demo credits. No card, no deposit."],
+          ["Pick an argument","Browse the arenas: football, gist, jollof, tech, music. Every market is a real-world YES or NO question with a named public source."],
+          ["Make your call","Back YES or NO with demo credits, \u20A6500 minimum. The crowd price shows where everyone leans. Your edge is reading it better."],
           ["The outcome gets verified","When the event concludes, the result is checked against the market's public source, then a 48-hour dispute window opens before anything pays out."],
           ["Winners share the pool","Call it right and take your share of the settled pool, split by stake. Wanana takes 5%, the market creator earns 1%, and the house never plays against you."],
         ].map((s,i)=>`<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
@@ -632,7 +632,17 @@ function heroView(){
           <div style="font-size:12.5px;color:var(--slate);line-height:1.65">${s[1]}</div>
         </div>`).join("")}
       </div>
-      <p style="font-size:12.5px;color:var(--slate);line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path \u2014 Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend \u2014 with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
+      <p style="font-size:12.5px;color:var(--slate);line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path from Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend, with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
+      <div class="site-footer">
+        <div class="sf-left">\u00A9 2026 Wanana \u00B7 A game of skill \u00B7 18+ only \u00B7 <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></div>
+        <div class="sf-socials" aria-label="Wanana on social media">
+          <a class="soc" href="https://www.instagram.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Instagram" title="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.56.22.96.48 1.38.9.42.42.68.82.9 1.38.17.4.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.4.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.17-.4-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.4-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2m0-2.2C8.7 0 8.3 0 7 .07 5.8.13 4.9.33 4.1.63c-.8.32-1.5.74-2.2 1.44A6 6 0 0 0 .63 4.26C.33 5.06.13 5.96.07 7.26 0 8.56 0 8.96 0 12.16s0 3.6.07 4.9c.06 1.3.26 2.2.56 3 .32.8.74 1.5 1.44 2.2.7.7 1.4 1.12 2.2 1.44.8.3 1.7.5 3 .56 1.3.07 1.7.07 4.9.07s3.6 0 4.9-.07c1.3-.06 2.2-.26 3-.56a6 6 0 0 0 2.2-1.44 6 6 0 0 0 1.44-2.2c.3-.8.5-1.7.56-3 .07-1.3.07-1.7.07-4.9s0-3.6-.07-4.9c-.06-1.3-.26-2.2-.56-3a6 6 0 0 0-1.44-2.2A6 6 0 0 0 19.96.63c-.8-.3-1.7-.5-3-.56C15.66 0 15.26 0 12.06 0h-.06Zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4Zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-11.8a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z"/></svg></a>
+          <a class="soc" href="https://www.tiktok.com/@wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on TikTok" title="TikTok"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 6.7a5.6 5.6 0 0 1-3.4-1.1 5.6 5.6 0 0 1-2.2-3.4h-3.5v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9.2a6.4 6.4 0 0 0-.9-.06 6.4 6.4 0 1 0 6.4 6.4V8.9a9 9 0 0 0 5.6 1.9V7.3c-.66 0-1.3-.2-2-.6Z"/></svg></a>
+          <a class="soc" href="https://x.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on X" title="X"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23Zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64Z"/></svg></a>
+          <a class="soc" href="https://www.linkedin.com/company/wanana-africa" target="_blank" rel="noopener" aria-label="Wanana on LinkedIn" title="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0Z"/></svg></a>
+        </div>
+      </div>
+      <style>.site-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-top:1px solid var(--line);padding:18px 0 34px;margin-top:6px}.sf-left{font-size:12px;color:var(--slate);line-height:1.6}.sf-socials{display:flex;gap:18px;align-items:center}.soc{color:var(--slate);display:inline-flex;transition:color .15s ease,transform .15s ease}.soc:hover{color:var(--orange);transform:translateY(-1px)}</style>
     </div>
     </div>
   </div>`;
@@ -703,7 +713,7 @@ const views = {
             <div style="display:flex;gap:10px;align-items:center">${streakFire(o.current_streak)}${tierBadge(o.rank_tier)}</div>
           </div>
           <div style="display:flex;gap:4px;margin-bottom:10px">${TIERS.map((tt,i)=>`<div style="flex:1;height:6px;border-radius:3px;background:${i<=idx?(TIER_COLOR[o.rank_tier]||"var(--orange)"):"var(--line)"}"></div>`).join("")}</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.6">${esc(TIER_NEXT[o.rank_tier]||"")} Rank grows from settled-call accuracy only \u2014 read it right, climb the path.${Number(o.best_streak)>=2?` Best streak: ${o.best_streak} in a row.`:""}</div>
+          <div style="font-size:12.5px;color:var(--slate);line-height:1.6">${esc(TIER_NEXT[o.rank_tier]||"")} Rank grows from settled-call accuracy only. Read it right, climb the path.${Number(o.best_streak)>=2?` Best streak: ${o.best_streak} in a row.`:""}</div>
         </div>`; })()}
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin:6px 0 10px">
         <div style="font-family:var(--disp);font-weight:600;font-size:15px">${S.boardMode==="week" ? "Top Callers" : "Top Oracles"}</div>
@@ -1113,19 +1123,19 @@ function victorySheet(){
 function helpSheet(){
   const qa = [
     ["What is Wanana?",
-     "A peer prediction marketplace and game of skill. Someone posts a real-world yes-or-no question, the crowd stakes demo credits on each side, and when the outcome is verified against a public source, whoever called it right is paid from the pool. Wanana never plays against you \u2014 we are the referee, not the house."],
+     "A peer prediction marketplace and game of skill. Someone posts a real-world yes-or-no question, the crowd stakes demo credits on each side, and when the outcome is verified against a public source, whoever called it right is paid from the pool. Wanana never plays against you. We are the referee, not the house."],
     ["How do calls and payouts work?",
      "Pick a market, choose YES or NO, and stake at least \u20A6500 in demo credits. The split of the pool is the live crowd price. When the market settles, winners share the pool in proportion to their stakes. Wanana takes 5% and the market creator earns 1%."],
     ["Is this real money?",
      "No. Wanana is in open beta and every balance is a demo credit balance (NGN_DEMO) with no cash value. Real-money features only arrive after licensing, identity verification (KYC) and payment review are complete."],
     ["How are results verified, and what if I disagree?",
-     "Every market names a public source when it is created. When the event concludes, the outcome is checked against that source and a 48-hour dispute window opens \u2014 every participant is emailed. If you think the outcome is wrong, open a dispute from Your calls with your evidence. Payouts are impossible before the window closes, and disputed markets always wait for human review."],
+     "Every market names a public source when it is created. When the event concludes, the outcome is checked against that source and a 48-hour dispute window opens, and every participant is emailed. If you think the outcome is wrong, open a dispute from Your calls with your evidence. Payouts are impossible before the window closes, and disputed markets always wait for human review."],
     ["Something is not working. How do I reach a person?",
      'Email <a href="mailto:support@wanana.africa" style="color:var(--glow)">support@wanana.africa</a> and a human will get back to you. Include your Oracle name and, if it is about a market, the market question.'],
   ];
   const chips = ["What is Wanana?","How do payments work?","How does settlement work?","How do referrals work?"];
   const askHtml = `
-    <div class="botlog">${S.chat.length ? S.chat.map(m=>`<div class="bm ${m.who}"><div class="bub">${m.who==="u"?esc(m.text):m.text}</div></div>`).join("") : `<div class="bm b"><div class="bub">Hi, I am Wanana\u2019s support assistant. Ask me how markets, calls, demo credits, settlement or disputes work. I never pick calls and never give financial advice \u2014 the read is always yours.</div></div>`}</div>
+    <div class="botlog">${S.chat.length ? S.chat.map(m=>`<div class="bm ${m.who}"><div class="bub">${m.who==="u"?esc(m.text):m.text}</div></div>`).join("") : `<div class="bm b"><div class="bub">Hi, I am Wanana\u2019s support assistant. Ask me how markets, calls, demo credits, settlement or disputes work. I never pick calls and never give financial advice. The read is always yours.</div></div>`}</div>
     <div class="botchips">${chips.map(c=>`<button class="chip" onclick="botAsk(this.textContent)">${c}</button>`).join("")}</div>
     <div style="display:flex;gap:8px">
       <input id="botq" maxlength="300" placeholder="Ask about Wanana" style="flex:1" onkeydown="if(event.key==='Enter')botSend()" aria-label="Ask Wanana a question" />
@@ -1135,7 +1145,7 @@ function helpSheet(){
   const faqHtml = qa.map(([q,a])=>`<div style="margin-bottom:16px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;color:var(--glow);margin-bottom:5px">${q}</div>
         <div style="font-size:13px;line-height:1.65;color:var(--text)">${a}</div>
-      </div>`).join("") + `<p class="note">More detail lives in <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a> \u2014 Terms, Privacy, Responsible Play, Market Rules, and Dispute &amp; Settlement Rules. 18+ only. Play within your limit.</p>`;
+      </div>`).join("") + `<p class="note">More detail lives in <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a>: Terms, Privacy, Responsible Play, Market Rules, and Dispute &amp; Settlement Rules. 18+ only. Play within your limit.</p>`;
   return `<div class="sheet-bg" style="z-index:70" onclick="S.help=false;render()">
     <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Help">
       <div class="handle"></div>
@@ -1651,7 +1661,7 @@ const withTimeout = (p, ms)=> Promise.race([p, new Promise(res=>setTimeout(()=>r
 sb.auth.onAuthStateChange((event, session)=>{
   S.session = session;
   if(event === "PASSWORD_RECOVERY"){ S.recovery = true; S.authMode = "newpass"; setMsg(null); render(); return; }
-  /* IMPORTANT: never await supabase calls inside this callback — the client
+  /* IMPORTANT: never await supabase calls inside this callback - the client
      holds an internal lock while dispatching events and calling back into it
      can deadlock (sign-in succeeds server-side but the UI never advances).
      Defer all async work so the callback returns immediately. */
@@ -1671,7 +1681,7 @@ sb.auth.onAuthStateChange((event, session)=>{
     const _rp = new URLSearchParams(location.search).get("ref");
     if(_rp) S.refPrefill = _rp.toUpperCase().slice(0,6);
   }catch(e){}
-  /* Paint the interface immediately — never leave a blank screen while
+  /* Paint the interface immediately - never leave a blank screen while
      the session and data load in the background. */
   render();
   try{
