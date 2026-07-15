@@ -411,8 +411,8 @@ const wananaBot = {
     ["review", /why[^.?!]{0,40}review|go(es)? through review|market[^.?!]{0,12}(pending|approved|rejected|stuck)|how long[^.?!]{0,15}review/i, "Every market goes through review before it goes live. That keeps markets clear, verifiable and inside the rules: no financial markets, no harmful topics, always a named public source. Clean markets are often auto-approved in seconds; anything unclear waits for the team."],
     ["verified_outcome", /verified outcome|how[^.?!]{0,15}(verif|resolv)|who decides|outcome work/i, "When an event concludes, the outcome is checked against the public source named when the market was created. The market then enters a 48-hour dispute window before any payout moves. Discussion and comments never influence official settlement. Only the named public source does."],
     ["dispute", /dispute|disagree[^.?!]{0,20}outcome|wrong (result|outcome)|challenge (the|an) outcome|48.?hour/i, "After an outcome is proposed, a 48-hour dispute window opens and every participant is notified. If you have evidence the outcome is wrong, open a dispute from Your calls and point to the public source. Payouts cannot move before the window closes, and disputed markets always wait for human review."],
-    ["settlement", /settlement|payout|when do i get paid|share of the pool|winnings|how do (i|players) (make|win)/i, "When the dispute window closes, settlement runs automatically. Winners share 94% of the pool in proportion to their stakes. Wanana takes 5% and the market creator earns 1%. Your share lands in your demo wallet and shows in your ledger."],
-    ["referral", /referr?al|invite|refer a friend|invite code/i, "Your invite code lives in your Profile. Share it, and when your person signs up and makes their first call, \u20A65,000 in demo credits lands in your wallet. One reward per referred player, all in NGN_DEMO."],
+    ["settlement", /settlement|payout|when do i get paid|share of the pool|winnings|how do (i|players) (make|win)/i, "When the dispute window closes, settlement runs automatically. Winners share 94% of the pool in proportion to their stakes. Wanana takes 5% and the market creator earns 1%. Your share lands in your demo balance and shows in your ledger."],
+    ["referral", /referr?al|invite|refer a friend|invite code/i, "Your invite code lives in your Profile. Share it, and when your person signs up and makes their first call, \u20a65,000 in demo credits lands in your balance. One reward per referred player, all in NGN_DEMO."],
     ["kyc", /\bkyc\b|verify[^.?!]{0,12}identity|\bbvn\b|\bnin\b|identity verification/i, "During open beta, identity verification is a placeholder: you submit your BVN or NIN and Wanana keeps only the last 4 digits, never the full number. Full KYC arrives with licensing, before any real-money feature switches on."],
     ["oracle", /oracle|leaderboard|\brank\b|streak/i, "Reach 10 settled calls at a 60% read rate and you earn the ORACLE rank on the public leaderboard. Accuracy, streaks and winnings are computed from verified results only. No shortcuts."],
     ["comments", /comment|discussion|community rules|report[^.?!]{0,12}(comment|post)/i, "Every market has a discussion. Keep it sound: no hate, harassment, personal attacks, private information, impersonation, spam or financial-market talk. Like useful takes, reply, and report anything harmful. The team reviews every report. Comments never influence settlement."],
@@ -477,7 +477,7 @@ function marketCard(m, interactive=true){
   </div>`;
 }
 
-const NAV_ITEMS = [["home","Markets"],["insights","Insights"],["create","Create"],["calls","Your calls"],["wallet","Wallet"]];
+const NAV_ITEMS = [["home","Markets"],["insights","Insights"],["create","Create"],["calls","Your calls"],["wallet","Balance"]];
 function navItems(){
   return S.profile && S.profile.isAdmin ? NAV_ITEMS.concat([["admin","Admin"]]) : NAV_ITEMS;
 }
@@ -791,7 +791,7 @@ const views = {
   },
   wallet(){
     return `<div class="pad narrow">
-      <h2 class="tabtitle">Wallet</h2>
+      <h2 class="tabtitle">Balance</h2>
       <div style="background:var(--card);border:1px solid var(--line);border-top:3px solid var(--orange);border-radius:8px;padding:20px;margin-bottom:14px">
         <div style="font-size:10.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.08em">Available balance</div>
         <div style="font-family:var(--disp);font-weight:700;font-size:34px;margin-top:4px"><span style="color:var(--glow)">\u20A6</span>${Number(S.profile.balance).toLocaleString("en-NG")}</div>
@@ -805,13 +805,13 @@ const views = {
       <p class="note">Your photo, identity verification and referral code now live in your <button class="alink" onclick="go('profile')">Profile</button>.</p>
       <div style="margin-top:18px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:10px">Recent activity</div>
-        ${S.ledger.length===0 ? `<div class="empty">Your wallet history shows up here.</div>` :
+        ${S.ledger.length===0 ? `<div class="empty">Your balance history shows up here.</div>` :
           S.ledger.map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px">
             <span style="color:var(--slate)">${esc(l.notes||l.transaction_type.replace(/_/g," "))}</span>
             <b style="color:${l.amount>0?"var(--teal)":"var(--coral)"};white-space:nowrap">${l.amount>0?"+":""}${N(l.amount)}</b>
           </div>`).join("")}
       </div>
-      <p class="note">Every movement on your wallet is recorded in an append-only ledger. Demo credits only during open beta.</p>
+      <p class="note">Every movement on your balance is recorded in an append-only ledger. Demo credits only during open beta.</p>
       <p class="note">Wanana is in open beta and runs on free play credits while our licence application is in progress. Cash funding via Paystack and Flutterwave, plus USSD, with KYC by BVN or NIN, switches on at launch.</p>
       <p class="note">Play within your limit. Take a break anytime. 18+ only. <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button> · <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></p>
     </div>`;
@@ -904,7 +904,7 @@ const views = {
       </div>
       <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Invite your people</div>
-        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20A65,000 demo credits land in your wallet.</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20a65,000 demo credits land in your balance.</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span style="font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.18em;color:var(--glow)">${esc(o.referral_code||"")}</span>
           <button class="chip" onclick="copyRef()">Copy invite link</button>
@@ -1111,7 +1111,7 @@ function victorySheet(){
       ${conf}
       <div style="font-family:var(--disp);font-weight:700;font-size:22px">${onlyCreator ? "Your market paid out" : "You called it"} \u{1F389}</div>
       <div class="win-amt">+\u20A6${total.toLocaleString("en-NG")}</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your wallet" : "landed in your wallet"}</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : "landed in your balance"}</div>
       ${wins.map(w=>`<div style="text-align:left;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)">
         <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
         <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
@@ -1165,11 +1165,11 @@ function paySheet(){
     <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="${mode}">
       <div class="handle"></div>
       <div style="font-family:var(--disp);font-weight:700;font-size:18px;margin-bottom:6px">${mode}</div>
-      <p class="authmsg" style="margin-bottom:14px">Payments are not live yet. This is a demo wallet.</p>
+      <p class="authmsg" style="margin-bottom:14px">Payments are not live yet. This is a demo balance.</p>
       <div class="field"><label>Amount</label><input inputmode="numeric" placeholder="₦ amount" disabled style="opacity:.55" /></div>
       <div class="row">
-        <button class="btn-yes" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo wallet.')">Pay with Paystack</button>
-        <button class="btn-no" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo wallet.')">Pay with Flutterwave</button>
+        <button class="btn-yes" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo balance.')">Pay with Paystack</button>
+        <button class="btn-no" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo balance.')">Pay with Flutterwave</button>
       </div>
       <p class="note">Real-money features will only go live after licensing, KYC and payment review. Until then, every balance on Wanana is a demo credit balance (NGN_DEMO). Nothing here is real money.</p>
     </div></div>`;
@@ -1201,7 +1201,7 @@ function userDetailSheet(){
             ? `<button class="btn-no" onclick="adminRole('${esc(u.username)}',false)">Remove admin</button>`
             : `<button class="btn-yes" onclick="adminRole('${esc(u.username)}',true)">Make admin</button>`)
           : `<span style="font-size:11.5px;color:var(--slate);padding:4px 2px">You cannot change your own role.</span>`}
-        <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust wallet</button>
+        <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust balance</button>
       </div>
 
       <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Recent calls</div>
@@ -1210,7 +1210,7 @@ function userDetailSheet(){
         <span style="color:${c.side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700">${c.side} ${N(c.amount)}</span>
       </div>`).join("") : `<div style="color:var(--slate);font-size:12px">No calls yet.</div>`}
 
-      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Wallet ledger</div>
+      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Balance ledger</div>
       ${(u.ledger&&u.ledger.length) ? u.ledger.map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
         <span style="color:var(--slate)">${esc(l.notes||l.type.replace(/_/g," "))} <span style="opacity:.6">· ${esc(l.at)}</span></span>
         <b style="color:${l.amount>0?"var(--teal)":"var(--coral)"};white-space:nowrap">${l.amount>0?"+":""}${N(l.amount)}</b>
@@ -1568,7 +1568,7 @@ window.adminRole = async (username, makeAdmin)=>{
   render(); toast((makeAdmin?"Granted admin. ":"Removed admin. ")+"Logged to the audit trail");
 };
 window.adminAdjust = async (username)=>{
-  const raw = prompt("Wallet adjustment for "+username+" in demo credits (use a negative number to deduct):");
+  const raw = prompt("Balance adjustment for "+username+" in demo credits (use a negative number to deduct):");
   if(raw===null) return;
   const amt = parseInt(raw,10);
   if(!amt || isNaN(amt)) return toast("Enter a whole number, e.g. 5000 or -2000");
@@ -1580,7 +1580,7 @@ window.adminAdjust = async (username)=>{
   await loadAdmin();
   const fresh = await rpc("admin_user_detail", { p_username: username });
   S.admin.userDetail = fresh && !fresh.error ? fresh : null;
-  render(); toast("Wallet adjusted. Logged to the audit trail");
+  render(); toast("Balance adjusted. Logged to the audit trail");
 };
 window.adminKyc = async (u, status)=>{
   const r = await rpc("admin_kyc_set", { p_username: u, p_status: status });
