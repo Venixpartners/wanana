@@ -256,7 +256,7 @@ const S = {
   detail: null, trade: null, comments: [], disc: null, discSort: "top", replyTo: null,
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", fT: "all", q: "", fA: "all", userDetail: null },
   myMarkets: [], editMarket: null, badges: [], weekBoard: null, boardMode: "week",
 };
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
@@ -412,7 +412,7 @@ const wananaBot = {
     ["verified_outcome", /verified outcome|how[^.?!]{0,15}(verif|resolv)|who decides|outcome work/i, "When an event concludes, the outcome is checked against the public source named when the market was created. The market then enters a 48-hour dispute window before any payout moves. Discussion and comments never influence official settlement. Only the named public source does."],
     ["dispute", /dispute|disagree[^.?!]{0,20}outcome|wrong (result|outcome)|challenge (the|an) outcome|48.?hour/i, "After an outcome is proposed, a 48-hour dispute window opens and every participant is notified. If you have evidence the outcome is wrong, open a dispute from Your calls and point to the public source. Payouts cannot move before the window closes, and disputed markets always wait for human review."],
     ["settlement", /settlement|payout|when do i get paid|share of the pool|winnings|how do (i|players) (make|win)/i, "When the dispute window closes, settlement runs automatically. Winners share 94% of the pool in proportion to their stakes. Wanana takes 5% and the market creator earns 1%. Your share lands in your demo balance and shows in your ledger."],
-    ["referral", /referr?al|invite|refer a friend|invite code/i, "Your invite code lives in your Profile. Share it, and when your person signs up and makes their first call, \u20a65,000 in demo credits lands in your balance. One reward per referred player, all in NGN_DEMO."],
+    ["referral", /referr?al|invite|refer a friend|invite code/i, "Your invite code lives in your Profile. Share it, and when your person signs up and makes their first call, \u20A65,000 in demo credits lands in your balance. One reward per referred player, all in NGN_DEMO."],
     ["kyc", /\bkyc\b|verify[^.?!]{0,12}identity|\bbvn\b|\bnin\b|identity verification/i, "During open beta, identity verification is a placeholder: you submit your BVN or NIN and Wanana keeps only the last 4 digits, never the full number. Full KYC arrives with licensing, before any real-money feature switches on."],
     ["oracle", /oracle|leaderboard|\brank\b|streak/i, "Reach 10 settled calls at a 60% read rate and you earn the ORACLE rank on the public leaderboard. Accuracy, streaks and winnings are computed from verified results only. No shortcuts."],
     ["comments", /comment|discussion|community rules|report[^.?!]{0,12}(comment|post)/i, "Every market has a discussion. Keep it sound: no hate, harassment, personal attacks, private information, impersonation, spam or financial-market talk. Like useful takes, reply, and report anything harmful. The team reviews every report. Comments never influence settlement."],
@@ -904,7 +904,7 @@ const views = {
       </div>
       <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Invite your people</div>
-        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20a65,000 demo credits land in your balance.</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:10px">Share your code. When your person makes their first call, \u20A65,000 demo credits land in your balance.</div>
         <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
           <span style="font-family:var(--disp);font-weight:700;font-size:20px;letter-spacing:.18em;color:var(--glow)">${esc(o.referral_code||"")}</span>
           <button class="chip" onclick="copyRef()">Copy invite link</button>
@@ -979,14 +979,20 @@ const views = {
             <button class="btn-no" onclick="cancelReqDecide(${r.id},false)">Decline</button>
           </div>
         </div>`).join("") : `<div class="empty">No cancellation requests waiting.</div>`) : ""}
-      ${A.panel==="ledger" ? `<input placeholder="Filter by user, type or note" value="${esc(A.q)}" onchange="S.admin.q=this.value;renderMain()" style="margin-bottom:10px" />
-      <div class="card">${A.ledger.filter(l=>!A.q||(l.username+" "+l.transaction_type+" "+(l.notes||"")).toLowerCase().includes(A.q.toLowerCase())).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
+      ${A.panel==="ledger" ? `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
+        <input placeholder="Search by user or note" value="${esc(A.q)}" onchange="S.admin.q=this.value;renderMain()" style="flex:1;min-width:160px;margin-bottom:0" />
+        <select onchange="S.admin.fT=this.value;renderMain()" style="width:auto;flex:0 0 auto">
+          <option value="all" ${(A.fT||"all")==="all"?"selected":""}>All actions</option>
+          ${[...new Set(A.ledger.map(l=>l.transaction_type))].sort().map(t=>`<option value="${esc(t)}" ${A.fT===t?"selected":""}>${esc(t.replace(/_/g," "))}</option>`).join("")}
+        </select>
+      </div>
+      <div class="card">${A.ledger.filter(l=>(!A.fT||A.fT==="all"||l.transaction_type===A.fT)).filter(l=>!A.q||(l.username+" "+l.transaction_type+" "+(l.notes||"")).toLowerCase().includes(A.q.toLowerCase())).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
           <span><b style="color:var(--glow)">${esc(l.username)}</b> ${l.transaction_type.replace(/_/g," ")} <span style="color:var(--slate)">${esc(l.notes||"")}</span></span>
           <span><b style="color:${l.amount>0?"var(--teal)":"var(--coral)"}">${l.amount>0?"+":""}${N(l.amount)}</b> <span style="color:var(--slate)">by ${esc(l.created_by)}</span></span>
         </div>`).join("") || "No entries yet."}</div>` : ""}
       ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
       <div class="card">${A.users.map(u=>`<div onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;cursor:pointer">
-          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
+          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':u.kyc_status==="verified"?' <span class="cat" style="color:var(--teal)">KYC \u2713</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
           <b>${N(u.balance)} ›</b>
         </div>`).join("") || "No users yet."}</div>` : ""}
       ${A.panel==="comments" ? (()=>{
@@ -995,9 +1001,10 @@ const views = {
           f==="all" ? true :
           f==="reported" ? c.open_reports>0 :
           f==="unreviewed" ? !c.reviewed :
+          f==="reviewed" ? c.reviewed :
           c.status===f);
         return `<div class="chips" style="padding-left:0">
-          ${[["all","All"],["reported",`Reported (${A.comments.filter(c=>c.open_reports>0).length})`],["unreviewed","Unreviewed"],["hidden","Hidden"],["removed","Removed"]].map(([k,l])=>`<button class="chip ${A.fCm===k?"on":""}" onclick="S.admin.fCm='${k}';renderMain()">${l}</button>`).join("")}
+          ${[["all","All"],["reported",`Reported (${A.comments.filter(c=>c.open_reports>0).length})`],["unreviewed",`Unreviewed (${A.comments.filter(c=>!c.reviewed).length})`],["reviewed",`Reviewed (${A.comments.filter(c=>c.reviewed).length})`],["hidden","Hidden"],["removed","Removed"]].map(([k,l])=>`<button class="chip ${A.fCm===k?"on":""}" onclick="S.admin.fCm='${k}';renderMain()">${l}</button>`).join("")}
         </div>
         ${L.map(c=>`<div class="card" style="margin-bottom:10px">
           <div class="meta"><span class="cat" style="color:${c.status==="visible"?"var(--teal)":c.status==="hidden"?"var(--glow)":"var(--coral)"}">${c.status.toUpperCase()}</span>
@@ -1111,7 +1118,7 @@ function victorySheet(){
       ${conf}
       <div style="font-family:var(--disp);font-weight:700;font-size:22px">${onlyCreator ? "Your market paid out" : "You called it"} \u{1F389}</div>
       <div class="win-amt">+\u20A6${total.toLocaleString("en-NG")}</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : "landed in your balance"}</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : '"landed in your balance"'}</div>
       ${wins.map(w=>`<div style="text-align:left;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)">
         <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
         <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
