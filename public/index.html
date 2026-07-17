@@ -263,7 +263,7 @@ const S = {
   detail: null, trade: null, comments: [], disc: null, discSort: "top", replyTo: null,
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", fT: "all", q: "", fA: "all", userDetail: null },
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", fT: "all", q: "", fA: "all", userDetail: null, expFrom: "", expTo: "" },
   myMarkets: [], editMarket: null, badges: [], weekBoard: null, boardMode: "week",
 };
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
@@ -324,7 +324,7 @@ async function loadProfile(){
   if(!S.session){ S.profile = null; return; }
   let me = await rpc("me");
   if(me && me.error){ await new Promise(r=>setTimeout(r, 700)); me = await rpc("me"); }
-  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
+  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, role: me.role || (me.is_admin ? "admin" : "user"), referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
 }
 async function loadLedger(){
   if(!S.session) return;
@@ -332,7 +332,16 @@ async function loadLedger(){
   S.ledger = Array.isArray(r) ? r : [];
 }
 async function loadAdmin(){
-  if(!S.profile || !S.profile.isAdmin) return;
+  const role = staffRole();
+  if(!role || !["admin","auditor","analyst"].includes(role)) return;
+  if(role==="auditor"){
+    if(!["ledger","audit","export"].includes(S.admin.panel)) S.admin.panel = "ledger";
+    const [l, a] = await Promise.all([rpc("admin_ledger_recent"), rpc("admin_audit_recent")]);
+    S.admin.ledger = Array.isArray(l) ? l : [];
+    S.admin.audit  = Array.isArray(a) ? a : [];
+    return;
+  }
+  if(role==="analyst"){ S.admin.panel = "export"; return; }
   const [m, d, l, u, c, a, rc, cr] = await Promise.all([
     rpc("admin_markets"), rpc("admin_disputes"), rpc("admin_ledger_recent"),
     rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent"),
@@ -485,8 +494,13 @@ function marketCard(m, interactive=true){
 }
 
 const NAV_ITEMS = [["home","Markets"],["insights","Insights"],["create","Create"],["calls","Your calls"],["wallet","Balance"]];
+function staffRole(){ return S.profile ? S.profile.role : null; }
 function navItems(){
-  return S.profile && S.profile.isAdmin ? NAV_ITEMS.concat([["admin","Admin"]]) : NAV_ITEMS;
+  const r = staffRole();
+  if(r==="admin") return NAV_ITEMS.concat([["admin","Admin"]]);
+  if(r==="auditor") return NAV_ITEMS.concat([["admin","Audit"]]);
+  if(r==="analyst") return NAV_ITEMS.concat([["admin","Data"]]);
+  return NAV_ITEMS;
 }
 function navButtons(){
   return navItems().map(([k,l])=>`<button class="${S.tab===k?"on":""}" onclick="go('${k}')">${l}</button>`).join("");
@@ -963,10 +977,18 @@ const views = {
         <div class="row" style="margin-bottom:0">${acts.join("")}</div>
       </div>`;
     };
+    const role = staffRole();
+    const segs = role==="admin"
+      ? [seg("markets","Markets"),seg("disputes",`Disputes (${A.disputes.length})`),seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`),seg("ledger","Ledger"),seg("users","Users"),seg("comments","Comments"),seg("audit","Audit log"),seg("export","Export")]
+      : role==="auditor"
+      ? [seg("ledger","Ledger"),seg("audit","Audit log"),seg("export","Export")]
+      : [seg("export","Export")];
     return `<div class="pad">
-      <h2 class="tabtitle">Admin</h2>
-      <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
-      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
+      <h2 class="tabtitle">${role==="admin"?"Admin":role==="auditor"?"Audit":"Data"}</h2>
+      <p class="sub">${role==="admin"?"Marketplace controls. Every action here is written to the audit log."
+        : role==="auditor"?"Read-only audit access. Every export you run is written to the audit log."
+        : "Read-only data extracts for analysis. Every export you run is written to the audit log."}</p>
+      <div class="chips" style="padding-left:0">${segs.join("")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
           ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
@@ -1003,7 +1025,7 @@ const views = {
         </div>`).join("") || "No entries yet."}</div>` : ""}
       ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
       <div class="card">${A.users.map(u=>`<div onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;cursor:pointer">
-          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':u.kyc_status==="verified"?' <span class="cat" style="color:var(--teal)">KYC \u2713</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
+          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${(u.role&&u.role!=="user")?' <span class="cat" style="color:'+(u.role==="admin"?"var(--orange)":u.role==="auditor"?"var(--teal)":"var(--glow)")+'">'+u.role.toUpperCase()+'</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':u.kyc_status==="verified"?' <span class="cat" style="color:var(--teal)">KYC \u2713</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
           <b>${N(u.balance)} ›</b>
         </div>`).join("") || "No users yet."}</div>` : ""}
       ${A.panel==="comments" ? (()=>{
@@ -1030,12 +1052,26 @@ const views = {
           </div>
         </div>`).join("") || `<div class="empty">Nothing in this queue.</div>`}`;})() : ""}
       ${A.panel==="audit" ? `<select onchange="S.admin.fA=this.value;renderMain()" style="margin-bottom:10px;width:auto">
-        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision","comment_moderation","pinned_update"].map(a=>`<option ${A.fA===a?"selected":""}>${a}</option>`).join("")}
+        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision","comment_moderation","pinned_update","data_export"].map(a=>`<option ${A.fA===a?"selected":""}>${a}</option>`).join("")}
       </select>
       <div class="card">${A.audit.filter(a=>A.fA==="all"||a.action===A.fA).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px">
           <b style="color:var(--glow)">${esc(a.actor)}</b> ${a.action.replace(/_/g," ")}${a.market_id?` · market #${a.market_id}`:""}${a.target?` · ${esc(a.target)}`:""}
           <span style="color:var(--slate)"> · ${new Date(a.created_at).toLocaleString()}</span>
         </div>`).join("") || "No admin actions yet."}</div>` : ""}
+      ${A.panel==="export" ? `<div class="card">
+        <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Export data as CSV</div>
+        <p class="note" style="margin-top:0">Optional date range (leave blank for everything, capped at 20,000 rows). Files open directly in Excel. Every export is recorded in the audit log with your name, the dataset and the row count.</p>
+        <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
+          <label style="font-size:12px;color:var(--slate)">From <input type="date" id="exp_from" value="${esc(A.expFrom||"")}" onchange="S.admin.expFrom=this.value" style="width:auto"></label>
+          <label style="font-size:12px;color:var(--slate)">To <input type="date" id="exp_to" value="${esc(A.expTo||"")}" onchange="S.admin.expTo=this.value" style="width:auto"></label>
+        </div>
+        <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:0">
+          ${role!=="analyst" ? `<button class="chip" onclick="runExport('audit_log')">Audit log CSV</button>
+          <button class="chip" onclick="runExport('wallet_ledger')">Ledger CSV</button>` : ""}
+          <button class="chip" onclick="runExport('markets')">Markets CSV</button>
+          <button class="chip" onclick="runExport('calls')">Calls CSV</button>
+        </div>
+      </div>` : ""}
     </div>`;
   },
 };
@@ -1204,7 +1240,7 @@ function userDetailSheet(){
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         ${avatarHtml(null, u.username, 46)}
         <div>
-          <div style="font-family:var(--disp);font-weight:700;font-size:18px">${esc(u.username)}${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}</div>
+          <div style="font-family:var(--disp);font-weight:700;font-size:18px">${esc(u.username)}${(u.role&&u.role!=="user")?' <span class="cat" style="color:'+(u.role==="admin"?"var(--orange)":u.role==="auditor"?"var(--teal)":"var(--glow)")+'">'+u.role.toUpperCase()+'</span>':""}</div>
           <div style="font-size:12px;color:var(--slate)">Joined ${esc(u.joined)} · ${N(u.balance)} · KYC <span style="color:${kcol}">${k}</span>${u.kyc_masked?" ("+esc(u.kyc_masked)+")":""}</div>
         </div>
       </div>
@@ -1215,9 +1251,10 @@ function userDetailSheet(){
         ${k!=="rejected" ? `<button class="btn-no" onclick="adminKyc('${esc(u.username)}','rejected')">Reject KYC</button>` : ""}
       </div>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
-        ${u.username!==meAdminName ? (u.is_admin
-            ? `<button class="btn-no" onclick="adminRole('${esc(u.username)}',false)">Remove admin</button>`
-            : `<button class="btn-yes" onclick="adminRole('${esc(u.username)}',true)">Make admin</button>`)
+        ${u.username!==meAdminName ? `<label style="font-size:12px;color:var(--slate)">Role
+            <select onchange="if(this.value!=='${esc(u.role||"user")}')adminAssignRole('${esc(u.username)}',this.value);else this.blur()" style="width:auto;margin-left:6px">
+              ${["user","analyst","auditor","admin"].map(rr=>`<option value="${rr}" ${(u.role||"user")===rr?"selected":""}>${rr.charAt(0).toUpperCase()+rr.slice(1)}</option>`).join("")}
+            </select></label>`
           : `<span style="font-size:11.5px;color:var(--slate);padding:4px 2px">You cannot change your own role.</span>`}
         <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust balance</button>
       </div>
@@ -1357,7 +1394,7 @@ window.doProfileSetup = async ()=>{
   const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null });
   S.busy = false;
   if(r.error){ setMsg(r.error, true); return render(); }
-  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
+  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, role: r.role || (r.is_admin ? "admin" : "user"), referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
   setMsg(null); await loadMarkets(); render();
   toast(`Welcome ${r.username}. ${N(r.balance)} demo credits to start. Make your call`);
 };
@@ -1576,14 +1613,43 @@ window.openUserDetail = async (username)=>{
   if(r.error) return toast(r.error);
   S.admin.userDetail = r; render();
 };
-window.adminRole = async (username, makeAdmin)=>{
-  if(!confirm((makeAdmin?"Make ":"Remove ")+username+(makeAdmin?" an admin?":" as admin?"))) return;
-  const r = await rpc("admin_set_role", { p_username: username, p_is_admin: makeAdmin });
+window.adminAssignRole = async (username, role)=>{
+  if(!role) return;
+  const labels = { user:"a regular user", analyst:"an Analyst (read-only data extracts)", auditor:"an Auditor (read-only audit log, ledger and exports)", admin:"an Admin (full marketplace control)" };
+  if(!confirm("Make "+username+" "+(labels[role]||role)+"?")) return;
+  const r = await rpc("admin_assign_role", { p_username: username, p_role: role });
   if(r.error) return toast(r.error);
   await loadAdmin();
   const fresh = await rpc("admin_user_detail", { p_username: username });
   S.admin.userDetail = fresh && !fresh.error ? fresh : null;
-  render(); toast((makeAdmin?"Granted admin. ":"Removed admin. ")+"Logged to the audit trail");
+  render(); toast("Role set to "+role+". Logged to the audit trail");
+};
+function toCsv(rows){
+  if(!rows || !rows.length) return "";
+  const cols = Object.keys(rows[0]);
+  const cell = v=>{
+    if(v===null || v===undefined) return "";
+    let s = typeof v==="object" ? JSON.stringify(v) : String(v);
+    return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
+  };
+  return cols.join(",")+"\r\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\r\n");
+}
+window.runExport = async (dataset)=>{
+  const fn = { audit_log:"export_audit_log", wallet_ledger:"export_wallet_ledger", markets:"export_markets", calls:"export_calls" }[dataset];
+  if(!fn) return;
+  const from = S.admin.expFrom || null, to = S.admin.expTo || null;
+  toast("Preparing your export\u2026");
+  const r = await rpc(fn, { p_from: from, p_to: to });
+  if(r.error) return toast(r.error);
+  const rows = Array.isArray(r.data) ? r.data : [];
+  if(!rows.length) return toast("No rows in that range");
+  const csv = "\uFEFF" + toCsv(rows);
+  const stamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8" }));
+  a.download = "wanana_"+dataset+"_"+stamp+".csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  toast(r.rows+" rows exported. Logged to the audit trail");
 };
 window.adminAdjust = async (username)=>{
   const raw = prompt("Balance adjustment for "+username+" in demo credits (use a negative number to deduct):");
