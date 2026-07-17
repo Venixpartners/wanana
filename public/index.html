@@ -229,6 +229,21 @@ nav.bottom button.on::before{content:"";position:absolute;top:0;left:50%;transfo
 .soc{color:var(--slate);display:inline-flex;transition:color .15s ease,transform .15s ease}
 .soc:hover{color:var(--orange);transform:translateY(-1px)}
 .footwrap{width:100%;max-width:1200px;margin:26px auto 0;padding:0 16px}
+/* --- Live polish: motion, skeletons, win burst --- */
+.bar .y{transition:width .6s cubic-bezier(.3,1,.4,1)}
+.bar .spark{transition:left .6s cubic-bezier(.3,1,.4,1)}
+.btn-yes,.btn-no,.chip,.cta{transition:transform .08s ease}
+.btn-yes:active,.btn-no:active,.chip:active,.cta:active{transform:scale(.95)}
+.tleft.soon{color:var(--coral);font-weight:600}
+@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
+.skel{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
+.skel .ln{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--card) 25%,#1B2258 37%,var(--card) 63%);background-size:400px 100%;animation:shimmer 1.3s infinite linear;margin-bottom:10px}
+@keyframes poolflash{0%{color:var(--glow)}100%{color:inherit}}
+.poolflash{animation:poolflash .7s ease}
+@keyframes wpop{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.25);opacity:0}}
+.wpart{position:absolute;top:34%;left:50%;width:9px;height:9px;border-radius:50%;pointer-events:none;animation:wpop .95s ease-out forwards}
+.sparkline{display:block;width:100%;height:44px;margin:2px 0 2px}
+@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -258,7 +273,7 @@ const S = {
   authEmail: "",
   authMsg: null,          // { text, err }
   busy: false,
-  markets: [], myCalls: [],
+  markets: [], myCalls: [], detailHist: [], loadingMarkets: false,
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [], disc: null, discSort: "top", replyTo: null,
   chat: [], helpTab: "ask",
@@ -310,8 +325,104 @@ async function rpc(fn, args){
   }
 }
 async function loadMarkets(){
+  if(!S.markets.length) S.loadingMarkets = true;
   const { data, error } = await sb.from("markets").select("*").eq("status","live").order("created_at",{ascending:false});
   if(!error && Array.isArray(data)) S.markets = data;
+  S.loadingMarkets = false;
+  initRealtime();
+}
+
+/* ---------------- Live engine: realtime pools, countdowns, motion ---------------- */
+let _rtChannel = null;
+function initRealtime(){
+  if(_rtChannel) return;
+  try{
+    _rtChannel = sb.channel("markets-live")
+      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"markets" }, p=>applyMarketUpdate(p.new))
+      .subscribe();
+  }catch(e){ _rtChannel = null; }
+}
+function sheetBusy(){ return !!(S.trade || S.dispute || S.pay || S.admin.userDetail); }
+function applyMarketUpdate(row){
+  if(!row || !row.id) return;
+  const i = S.markets.findIndex(m=>m.id===row.id);
+  if(i >= 0){
+    if(row.status && row.status !== "live"){
+      S.markets.splice(i,1);
+      if(S.detail && S.detail.id===row.id) S.detail = Object.assign({}, S.detail, row);
+      if(!sheetBusy()) render();
+      return;
+    }
+    S.markets[i] = Object.assign({}, S.markets[i], row);
+  }
+  if(S.detail && S.detail.id===row.id) S.detail = Object.assign({}, S.detail, row);
+  patchMarketDom(row.id);
+}
+function patchMarketDom(id){
+  const m = (S.detail && S.detail.id===id) ? S.detail : S.markets.find(x=>x.id===id);
+  if(!m) return;
+  const y = yesPct(m);
+  document.querySelectorAll(`[data-mid="${id}"]`).forEach(el=>{
+    const yb = el.querySelector(".bar .y"), sp = el.querySelector(".bar .spark");
+    if(yb) yb.style.width = y+"%";
+    if(sp) sp.style.left = y+"%";
+    el.querySelectorAll("[data-ypct]").forEach(n=>n.textContent = y+"%");
+    el.querySelectorAll("[data-npct]").forEach(n=>n.textContent = (100-y)+"%");
+    const pl = el.querySelector("[data-pool]");
+    if(pl){
+      pl.textContent = Number(m.yes_pool+m.no_pool).toLocaleString("en-NG");
+      pl.classList.remove("poolflash"); void pl.offsetWidth; pl.classList.add("poolflash");
+    }
+  });
+}
+function tickCountdowns(){
+  document.querySelectorAll(".tleft[data-ends]").forEach(el=>{
+    const r = fmtLeft(el.getAttribute("data-ends"));
+    el.textContent = r.text;
+    el.classList.toggle("soon", r.soon);
+  });
+}
+setInterval(tickCountdowns, 30000);
+function sparklineSvg(hist){
+  if(!Array.isArray(hist) || hist.length < 2) return `<div style="margin-bottom:10px"></div>`;
+  const pts = hist.map(h=>{ const t = Number(h.yes_pool)+Number(h.no_pool); return t>0 ? Number(h.yes_pool)/t*100 : 50; });
+  const w = 200, hh = 36, pad = 3;
+  const min = Math.min(...pts), max = Math.max(...pts), rng = (max-min) || 1;
+  const xy = pts.map((p,i)=>[ (i/(pts.length-1))*(w-2*pad)+pad, hh-pad-((p-min)/rng)*(hh-2*pad) ]);
+  const path = xy.map((c,i)=>(i?"L":"M")+c[0].toFixed(1)+" "+c[1].toFixed(1)).join(" ");
+  const last = xy[xy.length-1];
+  return `<svg class="sparkline" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" aria-hidden="true">
+      <path d="${path}" fill="none" stroke="var(--teal)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.6" fill="var(--orange)"/></svg>
+    <div style="font-size:11px;color:var(--slate);margin:0 0 12px">Crowd price on YES since this market opened</div>`;
+}
+function animateBalance(){
+  if(!S.profile) return;
+  const el = document.querySelector("[data-bal]");
+  const target = Number(S.profile.balance);
+  if(!el){ S._balShown = target; return; }
+  const from = (typeof S._balShown === "number") ? S._balShown : target;
+  if(from === target) return;
+  const t0 = performance.now(), dur = 650;
+  (function step(t){
+    const k = Math.min(1, (t-t0)/dur), e = 1-Math.pow(1-k,3);
+    el.textContent = Math.round(from+(target-from)*e).toLocaleString("en-NG");
+    if(k < 1) requestAnimationFrame(step); else S._balShown = target;
+  })(t0);
+}
+function animateWinAmt(){
+  const el = document.querySelector("[data-winamt]");
+  if(!el) return;
+  const target = Number(el.getAttribute("data-winamt"));
+  const key = el.getAttribute("data-winkey");
+  if(S._winShownKey === key){ el.textContent = "+\u20A6" + target.toLocaleString("en-NG"); return; }
+  S._winShownKey = key;
+  const t0 = performance.now(), dur = 1100;
+  (function step(t){
+    const k = Math.min(1, (t-t0)/dur), e = 1-Math.pow(1-k,3);
+    el.textContent = "+\u20A6" + Math.round(target*e).toLocaleString("en-NG");
+    if(k < 1) requestAnimationFrame(step);
+  })(t0);
 }
 async function loadComments(id){
   const r = await rpc("market_comments", { p_market_id: id });
@@ -477,19 +588,31 @@ function sparkNet(){
   </svg>`;
 }
 
+function fmtLeft(endsOn){
+  const end = new Date(endsOn + "T23:59:59");
+  const ms = end - Date.now();
+  if(isNaN(ms)) return { text: "ends " + endsOn, soon: false };
+  if(ms <= 0) return { text: "closing now", soon: true };
+  const mins = Math.floor(ms/60000), h = Math.floor(mins/60), d = Math.floor(h/24);
+  if(d >= 2) return { text: "ends in " + d + "d", soon: false };
+  if(h >= 24) return { text: "ends in 1d " + (h-24) + "h", soon: false };
+  if(h >= 1) return { text: "ends in " + h + "h " + (mins%60) + "m", soon: true };
+  return { text: "ends in " + Math.max(1,mins) + "m", soon: true };
+}
 function marketCard(m, interactive=true){
   const y = yesPct(m);
-  return `<div class="card" ${interactive?`onclick="openDetail(${m.id})" role="button" tabindex="0"`:""}>
+  const tl = fmtLeft(m.ends_on);
+  return `<div class="card" data-mid="${m.id}" ${interactive?`onclick="openDetail(${m.id})" role="button" tabindex="0"`:""}>
     <div class="meta"><span class="cat">${m.category}</span><span class="live"><span class="dot"></span>LIVE</span></div>
     <div class="q">${esc(m.question)}</div>
     <div class="bar"><div class="y" style="width:${y}%"></div><div class="n"></div><div class="spark" style="left:${y}%"></div></div>
     ${interactive?`<div class="row">
-      <button class="btn-yes" onclick="event.stopPropagation();openTrade(${m.id},'YES')">YES ${y}%</button>
-      <button class="btn-no" onclick="event.stopPropagation();openTrade(${m.id},'NO')">NO ${100-y}%</button>
+      <button class="btn-yes" onclick="event.stopPropagation();openTrade(${m.id},'YES')">YES <span data-ypct>${y}%</span></button>
+      <button class="btn-no" onclick="event.stopPropagation();openTrade(${m.id},'NO')">NO <span data-npct>${100-y}%</span></button>
     </div>`:`<div class="row">
-      <span class="btn-yes">YES ${y}%</span><span class="btn-no">NO ${100-y}%</span>
+      <span class="btn-yes">YES <span data-ypct>${y}%</span></span><span class="btn-no">NO <span data-npct>${100-y}%</span></span>
     </div>`}
-    <div class="stats"><span><span class="coin">\u20A6</span> <b>${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</b> in the pool</span><span>\u{1F4AC} ${m.comment_count||0} \u00b7 ends ${esc(m.ends_on)}</span></div>
+    <div class="stats"><span><span class="coin">\u20A6</span> <b data-pool>${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</b> in the pool</span><span>\u{1F4AC} ${m.comment_count||0} \u00b7 <span class="tleft ${tl.soon?"soon":""}" data-ends="${esc(m.ends_on)}">${tl.text}</span></span></div>
   </div>`;
 }
 
@@ -517,7 +640,7 @@ function render(){
       <button onclick="go('home')" aria-label="Wanana home" style="display:flex;align-items:center;padding:0">${WORDMARK}</button>
       <div class="topnav" role="navigation" aria-label="Main">${navButtons()}</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="balance"><span class="naira">\u20A6</span>${Number(S.profile.balance).toLocaleString("en-NG")}</div>
+        <div class="balance"><span class="naira">\u20A6</span><span data-bal>${Number(S.profile.balance).toLocaleString("en-NG")}</span></div>
         <button onclick="go('profile')" aria-label="Your profile" style="padding:0;border-radius:50%">${avatarHtml(S.profile.avatarUrl, S.profile.username, 34)}</button>
       </div>
     </div></header>
@@ -532,6 +655,8 @@ function render(){
     <div class="footwrap">${siteFooter()}</div>
     <nav class="bottom" aria-label="Main">${navButtons()}</nav>
   </div>`;
+  animateBalance();
+  animateWinAmt();
 }
 
 /* ---------------- Auth views ---------------- */
@@ -707,7 +832,9 @@ const views = {
     <div class="toolbar"><input placeholder="Search markets" value="${esc(S.query)}" oninput="S.query=this.value;renderMain()" aria-label="Search markets" /></div>
     <div class="chips">${CATS.map(c=>`<button class="chip ${c===S.cat?"on":""}" onclick="S.cat='${c}';renderMain()">${ARENA[c]||c}</button>`).join("")}</div>
     <div class="feed">
-      ${list.map(m=>marketCard(m)).join("") || `<div class="empty">No open markets yet. Ask something Africa will argue about.</div>`}
+      ${list.map(m=>marketCard(m)).join("") || (S.loadingMarkets
+        ? [1,2,3].map(()=>`<div class="skel"><div class="ln" style="width:28%"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:64%"></div><div class="ln" style="width:100%;height:7px;border-radius:999px"></div><div class="ln" style="width:40%;margin-bottom:0"></div></div>`).join("")
+        : `<div class="empty">No open markets yet. Ask something Africa will argue about.</div>`)}
     </div>`;
   },
   insights(){
@@ -1123,13 +1250,14 @@ function discussionBlock(){
 function detailSheet(){
   const m = S.detail; const y = yesPct(m);
   return `<div class="sheet-bg" onclick="S.detail=null;render()">
-    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Market detail">
+    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Market detail" data-mid="${m.id}">
       <div class="handle"></div>
       <div class="meta"><span class="cat">${m.category}</span><span class="live"><span class="dot"></span>LIVE</span></div>
       <div class="q" style="font-size:19.5px">${esc(m.question)}</div>
       <div class="bar" style="height:9px"><div class="y" style="width:${y}%"></div><div class="n"></div><div class="spark" style="left:${y}%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-family:var(--disp);font-size:13.5px;font-weight:600;margin-bottom:16px">
-        <span style="color:var(--teal)">YES ${y}%</span><span style="color:var(--coral)">NO ${100-y}%</span></div>
+      <div style="display:flex;justify-content:space-between;font-family:var(--disp);font-size:13.5px;font-weight:600;margin-bottom:6px">
+        <span style="color:var(--teal)">YES <span data-ypct>${y}%</span></span><span style="color:var(--coral)">NO <span data-npct>${100-y}%</span></span></div>
+      ${sparklineSvg(S.detailHist)}
       ${(()=>{ const mine = S.myCalls.filter(c=>c.market_id===m.id);
         if(!mine.length) return "";
         const yes = mine.filter(c=>c.side==="YES").reduce((s,c)=>s+c.amount,0);
@@ -1160,20 +1288,87 @@ function victorySheet(){
   const onlyCreator = wins.every(w=>w.kind==="creator");
   const bits = ["\u{1F389}","\u{2728}","\u{1F3C6}","\u{1F525}","\u{2B50}","\u{1F389}","\u{2728}","\u{1F3C6}"];
   const conf = bits.map((b,i)=>`<span class="confetti" style="left:${8+i*12}%;animation-delay:${(i*0.28).toFixed(2)}s">${b}</span>`).join("");
+  const pcols = ["var(--orange)","var(--teal)","var(--glow)","var(--coral)"];
+  const parts = Array.from({length:14},(_,i)=>{
+    const ang = (i/14)*Math.PI*2, dist = 90 + (i%4)*34;
+    return `<span class="wpart" style="background:${pcols[i%4]};--dx:${Math.round(Math.cos(ang)*dist)}px;--dy:${Math.round(Math.sin(ang)*dist)}px;animation-delay:${(i%5)*0.05}s"></span>`;
+  }).join("");
   return `<div class="win-bg" onclick="winsSeen(${lastId})">
     <div class="win-card" onclick="event.stopPropagation()">
-      ${conf}
+      ${conf}${parts}
       <div style="font-family:var(--disp);font-weight:700;font-size:22px">${onlyCreator ? "Your market paid out" : "You called it"} \u{1F389}</div>
-      <div class="win-amt">+\u20A6${total.toLocaleString("en-NG")}</div>
+      <div class="win-amt" data-winamt="${total}" data-winkey="${lastId}">+\u20A60</div>
       <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : '"landed in your balance"'}</div>
       ${wins.map(w=>`<div style="text-align:left;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)">
         <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
         <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
       </div>`).join("")}
-      <button class="cta" style="margin-top:16px" onclick="winsSeen(${lastId})">Collect am</button>
+      <div class="row" style="margin:16px 0 0;gap:8px">
+        <button class="cta" style="flex:1" onclick="winsSeen(${lastId})">Collect am</button>
+        <button class="chip" style="flex:1;border:1px solid var(--orange);color:var(--orange);font-weight:700" onclick="shareReceipt()">Share your receipt</button>
+      </div>
       <p class="note" style="margin-bottom:0">Every settlement is verified against a public source, with a 48 hour dispute window first.</p>
     </div></div>`;
 }
+function receiptWrap(x, text, cx, y, maxW, lh, maxLines){
+  const words = String(text).split(" "); let line = "", lines = [];
+  for(const w of words){
+    const t = line ? line+" "+w : w;
+    if(x.measureText(t).width > maxW && line){ lines.push(line); line = w; } else line = t;
+  }
+  if(line) lines.push(line);
+  if(lines.length > maxLines){ lines = lines.slice(0, maxLines); lines[maxLines-1] = lines[maxLines-1].slice(0,-3)+"\u2026"; }
+  lines.forEach((l,i)=>x.fillText(l, cx, y+i*lh));
+  return lines.length;
+}
+window.shareReceipt = async ()=>{
+  if(!S.wins || !S.wins.length) return;
+  const w = S.wins.find(v=>v.kind!=="creator") || S.wins[0];
+  const cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1080;
+  const x = cv.getContext("2d");
+  x.fillStyle = "#0B0E31"; x.fillRect(0,0,1080,1080);
+  const g = x.createRadialGradient(540,-60,60,540,-60,760);
+  g.addColorStop(0,"rgba(255,122,26,.22)"); g.addColorStop(1,"rgba(255,122,26,0)");
+  x.fillStyle = g; x.fillRect(0,0,1080,760);
+  x.strokeStyle = "#232B63"; x.lineWidth = 2;
+  x.strokeRect(60,60,960,960);
+  x.textAlign = "left"; x.textBaseline = "alphabetic";
+  x.font = "700 88px 'Space Grotesk', Arial, sans-serif";
+  const segs = [["wan","#F4F6FF"],["a","#FF7A1A"],["na","#F4F6FF"]];
+  let tw = 0; segs.forEach(s=>tw += x.measureText(s[0]).width);
+  let px = (1080-tw)/2;
+  segs.forEach(s=>{ x.fillStyle = s[1]; x.fillText(s[0], px, 205); px += x.measureText(s[0]).width; });
+  x.textAlign = "center";
+  x.fillStyle = "#8E95BE"; x.font = "600 32px 'Space Grotesk', Arial, sans-serif";
+  x.fillText(w.kind==="creator" ? "MY MARKET SETTLED" : "CALLED IT", 540, 320);
+  x.fillStyle = "#F4F6FF"; x.font = "700 48px 'Space Grotesk', Arial, sans-serif";
+  const nLines = receiptWrap(x, "\u201C"+(w.question||"")+"\u201D", 540, 400, 860, 62, 4);
+  let yPos = 400 + nLines*62 + 30;
+  if(w.outcome){
+    x.fillStyle = "#2DD4BF"; x.font = "600 34px Arial, sans-serif";
+    x.fillText("Verified outcome: "+w.outcome, 540, yPos); yPos += 90;
+  } else { yPos += 40; }
+  x.fillStyle = "#2DD4BF"; x.font = "800 110px 'Space Grotesk', Arial, sans-serif";
+  x.fillText("+\u20A6"+Number(w.amount).toLocaleString("en-NG"), 540, yPos+60);
+  x.fillStyle = "#8E95BE"; x.font = "500 28px Arial, sans-serif";
+  x.fillText("in demo credits \u00b7 a game of skill", 540, yPos+112);
+  x.strokeStyle = "#232B63"; x.beginPath(); x.moveTo(140,912); x.lineTo(940,912); x.stroke();
+  x.fillStyle = "#F4F6FF"; x.font = "600 32px Arial, sans-serif";
+  x.fillText("Africa argues about everything.", 540, 962);
+  x.fillStyle = "#FF7A1A"; x.font = "700 32px Arial, sans-serif";
+  x.fillText("wanana.africa"+(S.profile && S.profile.referralCode ? "/?ref="+S.profile.referralCode : ""), 540, 1004);
+  cv.toBlob(async b=>{
+    if(!b) return toast("Could not build your receipt. Try again");
+    const f = new File([b], "wanana_receipt.png", { type:"image/png" });
+    if(navigator.canShare && navigator.canShare({ files:[f] })){
+      try{ await navigator.share({ files:[f], title:"Wanana", text:"I called it on Wanana" }); return; }catch(e){ if(e && e.name==="AbortError") return; }
+    }
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(b); a.download = "wanana_receipt.png";
+    document.body.appendChild(a); a.click(); a.remove();
+    toast("Receipt saved. Post it");
+  }, "image/png");
+};
 
 function helpSheet(){
   const qa = [
@@ -1429,7 +1624,11 @@ window.openDetail = async (id)=>{
     if(data) m = data;
   }
   if(!m) return toast("This market is not available right now");
-  S.detail = m; await loadComments(id); render();
+  S.detail = m; S.detailHist = [];
+  rpc("market_history", { p_market_id: id }).then(h=>{
+    if(Array.isArray(h) && S.detail && S.detail.id===id){ S.detailHist = h; render(); }
+  });
+  await loadComments(id); render();
 };
 window.openTrade = (id, side)=>{ S.trade = { m:S.markets.find(x=>x.id===id)||S.detail, side }; render(); };
 window.updatePayout = (price)=>{ const v=parseInt(document.getElementById("stake").value,10);
