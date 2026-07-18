@@ -1490,8 +1490,8 @@ function tradeSheet(){
       <div class="handle"></div>
       <div style="font-family:var(--disp);font-weight:600;font-size:15.5px;line-height:1.4;margin-bottom:6px">${esc(m.question)}</div>
       <div style="font-size:13px;color:${side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700;margin-bottom:16px">Calling ${side} at ${price}%</div>
-      <input id="stake" inputmode="numeric" placeholder="Stake amount, minimum \u20A6500" oninput="this.value=this.value.replace(/\\D/g,'');updatePayout(${price})" style="font-size:16px;margin-bottom:10px" aria-label="Stake amount" />
-      <div class="row">${[1000,5000,20000].map(v=>`<button class="chip" style="flex:1;text-align:center" onclick="document.getElementById('stake').value='${v}';updatePayout(${price})">${N(v)}</button>`).join("")}</div>
+      <input id="stake" inputmode="numeric" placeholder="Stake amount, minimum \u20A6500" oninput="this.value=this.value.replace(/\\D/g,'');updatePayout()" style="font-size:16px;margin-bottom:10px" aria-label="Stake amount" />
+      <div class="row">${[1000,5000,20000].map(v=>`<button class="chip" style="flex:1;text-align:center" onclick="document.getElementById('stake').value='${v}';updatePayout()">${N(v)}</button>`).join("")}</div>
       <div id="payout" style="font-size:13px;color:var(--slate);margin-bottom:14px;min-height:18px"></div>
       <button class="cta" style="background:${side==="YES"?"var(--teal)":"var(--coral)"}" onclick="confirmStake()">Make your call</button>
       <p class="note" style="text-align:center">Only stake what you choose. Play within your limit.</p>
@@ -1631,8 +1631,22 @@ window.openDetail = async (id)=>{
   await loadComments(id); render();
 };
 window.openTrade = (id, side)=>{ S.trade = { m:S.markets.find(x=>x.id===id)||S.detail, side }; render(); };
-window.updatePayout = (price)=>{ const v=parseInt(document.getElementById("stake").value,10);
-  document.getElementById("payout").innerHTML = v>=500 ? `If your read lands you collect <b style="color:var(--glow)">${N(Math.round(v*100/Math.max(price,1)))}</b>` : ""; };
+window.updatePayout = ()=>{
+  const v = parseInt((document.getElementById("stake")||{}).value, 10) || 0;
+  const out = document.getElementById("payout");
+  if(!out || !S.trade) return;
+  if(v < 500){ out.innerHTML = ""; return; }
+  const { m, side } = S.trade;
+  const mine  = Number(side==="YES" ? m.yes_pool : m.no_pool);
+  const other = Number(side==="YES" ? m.no_pool  : m.yes_pool);
+  if(other <= 0){
+    out.innerHTML = `Nobody has called ${side==="YES"?"NO":"YES"} yet. If that stays true, your full stake comes back at settlement. Every opposing call grows your payout.`;
+    return;
+  }
+  const pot = mine + other + v;
+  const est = Math.floor(pot * 0.94 * v / (mine + v));
+  out.innerHTML = `If your read lands you collect about <b style="color:var(--glow)">${N(est)}</b> at today's pool, after the 5% platform fee and 1% creator reward. This moves with every call until the market closes.`;
+};
 window.confirmStake = async ()=>{
   const v = parseInt(document.getElementById("stake").value,10);
   if(!v||v<500) return toast("Minimum call is \u20A6500");
