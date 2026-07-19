@@ -652,6 +652,9 @@ function heroView(){
   </div>`;
 }
 
+const AFRICAN_CODES = [
+  ["Nigeria","\u{1F1F3}\u{1F1EC}","234"],["Algeria","\u{1F1E9}\u{1F1FF}","213"],["Angola","\u{1F1E6}\u{1F1F4}","244"],["Benin","\u{1F1E7}\u{1F1EF}","229"],["Botswana","\u{1F1E7}\u{1F1FC}","267"],["Burkina Faso","\u{1F1E7}\u{1F1EB}","226"],["Burundi","\u{1F1E7}\u{1F1EE}","257"],["Cabo Verde","\u{1F1E8}\u{1F1FB}","238"],["Cameroon","\u{1F1E8}\u{1F1F2}","237"],["Central African Republic","\u{1F1E8}\u{1F1EB}","236"],["Chad","\u{1F1F9}\u{1F1E9}","235"],["Comoros","\u{1F1F0}\u{1F1F2}","269"],["Congo","\u{1F1E8}\u{1F1EC}","242"],["Congo DR","\u{1F1E8}\u{1F1E9}","243"],["C\u00f4te d'Ivoire","\u{1F1E8}\u{1F1EE}","225"],["Djibouti","\u{1F1E9}\u{1F1EF}","253"],["Egypt","\u{1F1EA}\u{1F1EC}","20"],["Equatorial Guinea","\u{1F1EC}\u{1F1F6}","240"],["Eritrea","\u{1F1EA}\u{1F1F7}","291"],["Eswatini","\u{1F1F8}\u{1F1FF}","268"],["Ethiopia","\u{1F1EA}\u{1F1F9}","251"],["Gabon","\u{1F1EC}\u{1F1E6}","241"],["Gambia","\u{1F1EC}\u{1F1F2}","220"],["Ghana","\u{1F1EC}\u{1F1ED}","233"],["Guinea","\u{1F1EC}\u{1F1F3}","224"],["Guinea-Bissau","\u{1F1EC}\u{1F1FC}","245"],["Kenya","\u{1F1F0}\u{1F1EA}","254"],["Lesotho","\u{1F1F1}\u{1F1F8}","266"],["Liberia","\u{1F1F1}\u{1F1F7}","231"],["Libya","\u{1F1F1}\u{1F1FE}","218"],["Madagascar","\u{1F1F2}\u{1F1EC}","261"],["Malawi","\u{1F1F2}\u{1F1FC}","265"],["Mali","\u{1F1F2}\u{1F1F1}","223"],["Mauritania","\u{1F1F2}\u{1F1F7}","222"],["Mauritius","\u{1F1F2}\u{1F1FA}","230"],["Morocco","\u{1F1F2}\u{1F1E6}","212"],["Mozambique","\u{1F1F2}\u{1F1FF}","258"],["Namibia","\u{1F1F3}\u{1F1E6}","264"],["Niger","\u{1F1F3}\u{1F1EA}","227"],["Rwanda","\u{1F1F7}\u{1F1FC}","250"],["S\u00e3o Tom\u00e9 & Pr\u00edncipe","\u{1F1F8}\u{1F1F9}","239"],["Senegal","\u{1F1F8}\u{1F1F3}","221"],["Seychelles","\u{1F1F8}\u{1F1E8}","248"],["Sierra Leone","\u{1F1F8}\u{1F1F1}","232"],["Somalia","\u{1F1F8}\u{1F1F4}","252"],["South Africa","\u{1F1FF}\u{1F1E6}","27"],["South Sudan","\u{1F1F8}\u{1F1F8}","211"],["Sudan","\u{1F1F8}\u{1F1E9}","249"],["Tanzania","\u{1F1F9}\u{1F1FF}","255"],["Togo","\u{1F1F9}\u{1F1EC}","228"],["Tunisia","\u{1F1F9}\u{1F1F3}","216"],["Uganda","\u{1F1FA}\u{1F1EC}","256"],["Zambia","\u{1F1FF}\u{1F1F2}","260"],["Zimbabwe","\u{1F1FF}\u{1F1FC}","263"]
+];
 function profileSetupView(){
   return `<div class="hero">
     ${sparkNet()}
@@ -667,8 +670,10 @@ function profileSetupView(){
             <input id="p_username" maxlength="20" placeholder="e.g. LagosOracle" /></div>
           <div class="field"><label>Phone number</label>
             <div style="display:flex;gap:8px">
-              <input value="+234" disabled aria-label="Country code" style="flex:0 0 72px;text-align:center;opacity:.7" />
-              <input id="p_phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="11" placeholder="801 234 5678" oninput="this.value=this.value.replace(/\D/g,'')" style="flex:1" />
+              <select id="p_ccode" aria-label="Country code" style="flex:0 0 118px;min-width:0" onchange="ccodeChanged()">
+                ${AFRICAN_CODES.map(([name,flag,code])=>`<option value="${code}" ${code==="234"?"selected":""}>${flag} +${code} ${name}</option>`).join("")}
+              </select>
+              <input id="p_phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="12" placeholder="801 234 5678" oninput="this.value=this.value.replace(/\D/g,'')" style="flex:1;min-width:0" />
             </div></div>
           <div class="field"><label>Referral code (optional)</label>
             <input id="p_ref" maxlength="6" placeholder="e.g. 3EA0AE" value="${esc(S.refPrefill)}" style="text-transform:uppercase" /></div>
@@ -1339,16 +1344,26 @@ window.doSetNewPassword = async ()=>{
   await loadProfile(); await refreshCalls(); render();
   toast("New password saved. You are signed in");
 };
+window.ccodeChanged = ()=>{
+  const sel = document.getElementById("p_ccode");
+  const inp = document.getElementById("p_phone");
+  if(sel && inp) inp.placeholder = sel.value === "234" ? "801 234 5678" : "Mobile number";
+};
 window.doProfileSetup = async ()=>{
   const u = ((document.getElementById("p_username")||{}).value || "").trim();
   if(u.length < 3){ setMsg("Username needs at least 3 characters", true); return render(); }
+  const ccode = (((document.getElementById("p_ccode")||{}).value)||"234");
   let phone = (((document.getElementById("p_phone")||{}).value)||"").replace(/\D/g,"");
-  if(phone.startsWith("234")) phone = phone.slice(3);
+  if(phone.startsWith(ccode)) phone = phone.slice(ccode.length);
   if(phone.startsWith("0")) phone = phone.slice(1);
-  if(!/^[789][01]\d{8}$/.test(phone)){ setMsg("Enter a valid Nigerian mobile number, like 0801 234 5678", true); return render(); }
+  if(ccode === "234"){
+    if(!/^[789][01]\d{8}$/.test(phone)){ setMsg("Enter a valid Nigerian mobile number, like 0801 234 5678", true); return render(); }
+  } else {
+    if(!/^\d{6,11}$/.test(phone)){ setMsg("Enter a valid mobile number for your country", true); return render(); }
+  }
   S.busy = true; render();
   const refCode = (((document.getElementById("p_ref")||{}).value)||"").trim();
-  const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null, p_phone: "+234" + phone });
+  const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null, p_phone: "+" + ccode + phone });
   S.busy = false;
   if(r.error){ setMsg(r.error, true); return render(); }
   S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
