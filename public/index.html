@@ -1260,7 +1260,7 @@ function userDetailSheet(){
         <span style="color:${c.side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700">${c.side} ${N(c.amount)}</span>
       </div>`).join("") : `<div style="color:var(--slate);font-size:12px">No calls yet.</div>`}
 
-      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Wallet ledger</div>
+      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Balance ledger</div>
       ${(u.ledger&&u.ledger.length) ? u.ledger.map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
         <span style="color:var(--slate)">${esc(l.notes||l.type.replace(/_/g," "))} <span style="opacity:.6">· ${esc(l.at)}</span></span>
         <b style="color:${l.amount>0?"var(--teal)":"var(--coral)"};white-space:nowrap">${l.amount>0?"+":""}${N(l.amount)}</b>
@@ -1660,7 +1660,7 @@ window.adminRole = async (username, makeAdmin)=>{
   render(); toast((makeAdmin?"Granted admin. ":"Removed admin. ")+"Logged to the audit trail");
 };
 window.adminAdjust = async (username)=>{
-  const raw = prompt("Wallet adjustment for "+username+" in demo credits (use a negative number to deduct):");
+  const raw = prompt("Balance adjustment for "+username+" in demo credits (use a negative number to deduct):");
   if(raw===null) return;
   const amt = parseInt(raw,10);
   if(!amt || isNaN(amt)) return toast("Enter a whole number, e.g. 5000 or -2000");
@@ -1672,7 +1672,7 @@ window.adminAdjust = async (username)=>{
   await loadAdmin();
   const fresh = await rpc("admin_user_detail", { p_username: username });
   S.admin.userDetail = fresh && !fresh.error ? fresh : null;
-  render(); toast("Wallet adjusted. Logged to the audit trail");
+  render(); toast("Balance adjusted. Logged to the audit trail");
 };
 window.adminKyc = async (u, status)=>{
   const r = await rpc("admin_kyc_set", { p_username: u, p_status: status });
