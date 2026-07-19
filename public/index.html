@@ -729,7 +729,7 @@ const views = {
       (!S.query||m.question.toLowerCase().includes(S.query.toLowerCase())));
     return `
     <div class="toolbar"><input placeholder="Search markets" value="${esc(S.query)}" oninput="S.query=this.value;renderMain()" aria-label="Search markets" /></div>
-    <div class="chips">${CATS.map(c=>`<button class="chip ${c===S.cat?"on":""}" onclick="S.cat='${c}';renderMain()">${ARENA[c]||c}</button>`).join("")}</div>
+    <div class="chips">${CATS.map(c=>`<button class="chip ${c===S.cat?"on":""}" onclick="setCat('${c}')">${ARENA[c]||c}</button>`).join("")}</div>
     <div class="feed">
       ${list.map(m=>marketCard(m)).join("") || `<div class="empty">No open markets yet. Ask something Africa will argue about.</div>`}
     </div>`;
@@ -1420,28 +1420,36 @@ window.setMsg = setMsg;
 /* ---------------- URL routing ---------------- */
 const TAB_PATH = { home:"/", insights:"/insights", create:"/create", calls:"/calls", wallet:"/balance", profile:"/profile", admin:"/admin" };
 function slugify(q){ return String(q||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60); }
+/* Arena deep links: /arena/football-arena etc. Accepts both the arena skin
+   name and the raw category name as slugs. Display names only - category
+   values and legal vocabulary never change. */
+const ARENA_ROUTES = (()=>{ const m = {}; CATS.slice(1).forEach(c=>{ m[slugify(ARENA[c]||c)] = c; m[slugify(c)] = c; }); return m; })();
 function routeFromPath(){
   const p = location.pathname.replace(/\/+$/,"") || "/";
   const mkt = p.match(/^\/market\/(\d+)/);
-  if(mkt) return { tab:"home", marketId: parseInt(mkt[1],10) };
+  if(mkt) return { tab:"home", marketId: parseInt(mkt[1],10), cat: null };
+  const ar = p.match(/^\/arena\/([a-z0-9-]+)/);
+  if(ar && ARENA_ROUTES[ar[1]]) return { tab:"home", marketId: null, cat: ARENA_ROUTES[ar[1]] };
   const seg = p.split("/")[1] || "";
-  const map = { "":"home", "market":"home", "markets":"home", "insights":"insights", "create":"create", "calls":"calls", "balance":"wallet", "wallet":"wallet", "profile":"profile", "admin":"admin" };
-  return { tab: map[seg] || "home", marketId: null };
+  const map = { "":"home", "market":"home", "markets":"home", "arena":"home", "insights":"insights", "create":"create", "calls":"calls", "balance":"wallet", "wallet":"wallet", "profile":"profile", "admin":"admin" };
+  return { tab: map[seg] || "home", marketId: null, cat: null };
 }
 function syncUrl(replace){
   let path;
   if(S.detail){ const s = slugify(S.detail.question); path = "/market/" + S.detail.id + (s ? "-" + s : ""); }
+  else if(S.tab === "home" && S.cat && S.cat !== "All") path = "/arena/" + slugify(ARENA[S.cat]||S.cat);
   else path = TAB_PATH[S.tab] || "/";
   if(location.pathname !== path){
     try{ if(replace) history.replaceState({}, "", path); else history.pushState({}, "", path); }catch(e){}
   }
 }
+window.setCat = (c)=>{ S.cat = c; if(S.tab === "home" && !S.detail) syncUrl(); renderMain(); };
 window.closeDetail = ()=>{ S.detail=null; syncUrl(); render(); };
 window.addEventListener("popstate", async ()=>{
   const r = routeFromPath();
   S.trade = null;
   if(r.marketId){ S.tab = "home"; await openDetail(r.marketId, true); }
-  else { S.detail = null; await go(r.tab, true); }
+  else { S.detail = null; if(r.tab === "home") S.cat = r.cat || "All"; await go(r.tab, true); }
 });
 window.go = async (t, fromPop)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
   if(t==="admin" && !(S.profile && S.profile.isAdmin)) S.tab = t = "home";
@@ -1773,7 +1781,7 @@ sb.auth.onAuthStateChange((event, session)=>{
           if(S.pendingRoute && S.profile){
             const pr = S.pendingRoute; S.pendingRoute = null;
             if(pr.marketId) await openDetail(pr.marketId, true);
-            else if(pr.tab !== "home") await go(pr.tab, true);
+            else { if(pr.cat) S.cat = pr.cat; if(pr.tab !== "home" || pr.cat) await go(pr.tab, true); }
           }
         }
       }
@@ -1798,15 +1806,15 @@ sb.auth.onAuthStateChange((event, session)=>{
     render();
     if(S.session){ await withTimeout(Promise.all([loadProfile(), refreshCalls()]), 8000); checkWins(); }
   }catch(e){}
-  /* Route from the URL: /market/42 opens that market, /calls opens Your calls, etc.
-     If the visitor is signed out, remember where they wanted to go and take them
-     there right after sign-in. */
+  /* Route from the URL: /market/42 opens that market, /arena/jollof-wars opens
+     that arena, /calls opens Your calls, etc. If the visitor is signed out,
+     remember where they wanted to go and take them there right after sign-in. */
   try{
     const r0 = routeFromPath();
     if(S.session && S.profile){
       if(r0.marketId) await openDetail(r0.marketId, true);
-      else if(r0.tab !== "home") await go(r0.tab, true);
-    } else if(r0.marketId || r0.tab !== "home"){
+      else { if(r0.cat) S.cat = r0.cat; if(r0.tab !== "home" || r0.cat) await go(r0.tab, true); }
+    } else if(r0.marketId || r0.tab !== "home" || r0.cat){
       S.pendingRoute = r0;
     }
   }catch(e){}
