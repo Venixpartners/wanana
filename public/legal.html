@@ -30,6 +30,12 @@ p{margin-bottom:12px;color:var(--text)}
 li{margin:0 0 8px 18px;color:var(--text)}
 .muted{color:var(--slate)}
 .back{display:inline-block;margin-top:30px;font-weight:600}
+.site-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-top:1px solid var(--line);padding:18px 0 10px;margin-top:34px}
+.sf-left{font-size:12px;color:var(--slate);line-height:1.6}
+.sf-left a{color:var(--slate)}
+.sf-socials{display:flex;gap:18px;align-items:center}
+.soc{color:var(--slate);display:inline-flex;transition:color .15s ease,transform .15s ease}
+.soc:hover{color:var(--orange);transform:translateY(-1px)}
 </style>
 </head>
 <body>
@@ -64,7 +70,7 @@ li{margin:0 0 8px 18px;color:var(--text)}
 <li>No manipulation: coordinated calling to distort a pool, multiple accounts, or exploiting verification gaps.</li>
 <li>No abusive, hateful, or unlawful content in questions or discussion.</li>
 </ul>
-<p>We may remove content, void markets, suspend or close accounts that break these terms. Where a market is voided or cancelled, stakes are refunded to the wallet ledger.</p>
+<p>We may remove content, void markets, suspend or close accounts that break these terms. Where a market is voided or cancelled, stakes are refunded to the balance ledger.</p>
 <p class="muted">Wanana is operated as a game of skill. Nothing on the platform is investment advice, financial advice, or a solicitation to trade any financial product.</p>
 </section>
 
@@ -74,12 +80,12 @@ li{margin:0 0 8px 18px;color:var(--text)}
 <h3>What we collect</h3>
 <ul>
 <li><b>Account data:</b> your email address and a username you choose.</li>
-<li><b>Activity data:</b> the markets you create, the calls you make, comments, and your demo wallet ledger.</li>
+<li><b>Activity data:</b> the markets you create, the calls you make, comments, and your demo balance ledger.</li>
 <li><b>Verification placeholder:</b> during beta, if you submit ID details, we keep only the ID type and the last 4 digits, never the full number.</li>
 </ul>
 <h3>How we use it</h3>
 <ul>
-<li>To run your account, settle markets, and keep an accurate wallet ledger.</li>
+<li>To run your account, settle markets, and keep an accurate balance ledger.</li>
 <li>To send you service emails such as verification codes, market updates, and settlement notices. You can opt out of non-essential emails.</li>
 <li>To keep the platform safe: fraud prevention, dispute review, and audit trails.</li>
 </ul>
@@ -109,11 +115,11 @@ li{margin:0 0 8px 18px;color:var(--text)}
 <ul>
 <li>Every market must be a clear yes-or-no question about a real-world event with a public, checkable answer.</li>
 <li>Every market must name an approved public resolution source when it is created (for example an official body, a government publication, or an established public record). Markets without a workable source are rejected.</li>
-<li>Every user-created market is reviewed by our team before it goes live. Nothing goes live automatically.</li>
+<li>Every user-created market passes through Wanana's review system before it goes live. Clear, low-risk markets may be approved automatically by the review engine; anything unclear or higher-risk waits for review by our team, and every review decision is recorded.</li>
 <li>No forex, stock, crypto, securities, investment, or financial-market predictions of any kind.</li>
 <li>Minimum call is ₦500 in demo credits. The crowd sets the price: the split of the pool between YES and NO is the market's live probability.</li>
 <li>Market creators earn 1% of the settled pool. Wanana takes a 5% platform cut at settlement. The rest of the pool is shared by winning callers in proportion to their stakes.</li>
-<li>Markets that break the rules are taken down and voided, and all stakes are refunded through the wallet ledger.</li>
+<li>Markets that break the rules are taken down and voided, and all stakes are refunded through the balance ledger.</li>
 </ul>
 </section>
 
@@ -124,14 +130,24 @@ li{margin:0 0 8px 18px;color:var(--text)}
 <li><b>Verification.</b> When a market's event concludes, the market enters verification and the outcome is checked against the resolution source named when the market was created.</li>
 <li><b>Proposed outcome.</b> The verified outcome is recorded together with the source used and any notes, and the market enters a <b>48-hour dispute window</b>. Every participant is notified.</li>
 <li><b>Disputes.</b> During the window, any participant can open a dispute pointing to public evidence that the proposed outcome is wrong. Our team reviews every dispute before settlement.</li>
-<li><b>Settlement.</b> Payouts are only possible after the 48-hour window closes. Winners are paid pro-rata from the pool, the creator reward and platform cut are applied, and every credit is recorded in the append-only wallet ledger.</li>
+<li><b>Settlement.</b> Payouts are only possible after the 48-hour window closes. Winners are paid pro-rata from the pool, the creator reward and platform cut are applied, and every credit is recorded in the append-only balance ledger.</li>
 <li><b>No winners.</b> If the verified outcome has no winning calls, every stake is refunded in full.</li>
 <li><b>Cancellation.</b> If a market cannot be fairly settled (source disappears, event voided, rule breach), it is cancelled and all stakes are refunded in full.</li>
 </ul>
-<p class="muted">Settlement decisions, wallet adjustments, and dispute decisions are all recorded in an internal audit log.</p>
+<p class="muted">Settlement decisions, balance adjustments, and dispute decisions are all recorded in an internal audit log.</p>
 </section>
 
 <a class="back" href="/">&larr; Back to wanana</a>
+<div class="site-footer">
+  <div class="sf-left">&copy; 2026 Wanana &middot; Operated by Wanana Technologies Limited &middot; A game of skill &middot; 18+ only &middot; <a href="/legal.html">Legal &amp; safety</a></div>
+  <div class="sf-socials" aria-label="Wanana on social media">
+    <a class="soc" href="https://www.instagram.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Instagram" title="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.56.22.96.48 1.38.9.42.42.68.82.9 1.38.17.4.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.4.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.17-.4-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.4-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2m0-2.2C8.7 0 8.3 0 7 .07 5.8.13 4.9.33 4.1.63c-.8.32-1.5.74-2.2 1.44A6 6 0 0 0 .63 4.26C.33 5.06.13 5.96.07 7.26 0 8.56 0 8.96 0 12.16s0 3.6.07 4.9c.06 1.3.26 2.2.56 3 .32.8.74 1.5 1.44 2.2.7.7 1.4 1.12 2.2 1.44.8.3 1.7.5 3 .56 1.3.07 1.7.07 4.9.07s3.6 0 4.9-.07c1.3-.06 2.2-.26 3-.56a6 6 0 0 0 2.2-1.44 6 6 0 0 0 1.44-2.2c.3-.8.5-1.7.56-3 .07-1.3.07-1.7.07-4.9s0-3.6-.07-4.9c-.06-1.3-.26-2.2-.56-3a6 6 0 0 0-1.44-2.2A6 6 0 0 0 19.96.63c-.8-.3-1.7-.5-3-.56C15.66 0 15.26 0 12.06 0h-.06Zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4Zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-11.8a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z"/></svg></a>
+    <a class="soc" href="https://www.tiktok.com/@wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on TikTok" title="TikTok"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 6.7a5.6 5.6 0 0 1-3.4-1.1 5.6 5.6 0 0 1-2.2-3.4h-3.5v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9.2a6.4 6.4 0 0 0-.9-.06 6.4 6.4 0 1 0 6.4 6.4V8.9a9 9 0 0 0 5.6 1.9V7.3c-.66 0-1.3-.2-2-.6Z"/></svg></a>
+    <a class="soc" href="https://x.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on X" title="X"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23Zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64Z"/></svg></a>
+    <a class="soc" href="https://www.facebook.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Facebook" title="Facebook"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12a10 10 0 1 0-11.56 9.87v-6.98H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.98A10 10 0 0 0 22 12Z"/></svg></a>
+    <a class="soc" href="https://www.linkedin.com/company/wanana-africa" target="_blank" rel="noopener" aria-label="Wanana on LinkedIn" title="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0Z"/></svg></a>
+  </div>
+</div>
 </div>
 </body>
 </html>
