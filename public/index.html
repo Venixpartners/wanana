@@ -1081,7 +1081,7 @@ function discussionBlock(){
 
 function detailSheet(){
   const m = S.detail; const y = yesPct(m);
-  return `<div class="sheet-bg" onclick="S.detail=null;render()">
+  return `<div class="sheet-bg" onclick="closeDetail()">
     <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Market detail">
       <div class="handle"></div>
       <div class="meta"><span class="cat">${m.category}</span><span class="live"><span class="dot"></span>LIVE</span></div>
@@ -1108,6 +1108,7 @@ function detailSheet(){
         <span class="verified">\u2713 Verified settlement</span> \u00b7 outcome confirmed via ${esc(m.source)}. Pool ${N(m.yes_pool+m.no_pool)} \u00b7 created by ${esc(m.creator)}. Winners split the pool by stake. Wanana takes 5%, the creator earns 1%, and payouts release after a 48 hour dispute window.
       </div>
       <div class="aicard"><div class="t">Market Pulse · Wanana AI</div><p>${wananaAI.pulse(m)}</p></div>
+      <div style="margin-bottom:16px"><button class="chip" onclick="copyMarketLink()">Share this market \u00b7 Copy link</button></div>
       ${discussionBlock()}
     </div></div>`;
 }
@@ -1380,7 +1381,35 @@ window.doSignOut = async ()=>{
 window.S = S;
 window.render = render;
 window.setMsg = setMsg;
-window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
+/* ---------------- URL routing ---------------- */
+const TAB_PATH = { home:"/", insights:"/insights", create:"/create", calls:"/calls", wallet:"/balance", profile:"/profile", admin:"/admin" };
+function slugify(q){ return String(q||"").toLowerCase().replace(/[^a-z0-9]+/g,"-").replace(/^-+|-+$/g,"").slice(0,60); }
+function routeFromPath(){
+  const p = location.pathname.replace(/\/+$/,"") || "/";
+  const mkt = p.match(/^\/market\/(\d+)/);
+  if(mkt) return { tab:"home", marketId: parseInt(mkt[1],10) };
+  const seg = p.split("/")[1] || "";
+  const map = { "":"home", "market":"home", "markets":"home", "insights":"insights", "create":"create", "calls":"calls", "balance":"wallet", "wallet":"wallet", "profile":"profile", "admin":"admin" };
+  return { tab: map[seg] || "home", marketId: null };
+}
+function syncUrl(replace){
+  let path;
+  if(S.detail){ const s = slugify(S.detail.question); path = "/market/" + S.detail.id + (s ? "-" + s : ""); }
+  else path = TAB_PATH[S.tab] || "/";
+  if(location.pathname !== path){
+    try{ if(replace) history.replaceState({}, "", path); else history.pushState({}, "", path); }catch(e){}
+  }
+}
+window.closeDetail = ()=>{ S.detail=null; syncUrl(); render(); };
+window.addEventListener("popstate", async ()=>{
+  const r = routeFromPath();
+  S.trade = null;
+  if(r.marketId){ S.tab = "home"; await openDetail(r.marketId, true); }
+  else { S.detail = null; await go(r.tab, true); }
+});
+window.go = async (t, fromPop)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
+  if(t==="admin" && !(S.profile && S.profile.isAdmin)) S.tab = t = "home";
+  if(!fromPop) syncUrl();
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();
   if(t==="insights"){ await loadBoard(); const wb = await rpc("weekly_leaderboard"); S.weekBoard = wb && !wb.error ? wb : null;
@@ -1394,14 +1423,14 @@ window.go = async (t)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") 
   render(); };
 window.renderMain = ()=>{ document.getElementById("main").innerHTML = views[S.tab]();
   const q=document.querySelector('#main .toolbar input'); if(q&&S.tab==="home"&&S.query){q.focus();q.setSelectionRange(q.value.length,q.value.length);} };
-window.openDetail = async (id)=>{
+window.openDetail = async (id, fromPop)=>{
   let m = S.markets.find(x=>x.id===id);
   if(!m){
     const { data } = await sb.from("markets").select("*").eq("id", id).maybeSingle();
     if(data) m = data;
   }
-  if(!m) return toast("This market is not available right now");
-  S.detail = m; await loadComments(id); render();
+  if(!m){ if(!fromPop){} return toast("This market is not available right now"); }
+  S.detail = m; if(!fromPop) syncUrl(); await loadComments(id); render();
 };
 window.openTrade = (id, side)=>{ S.trade = { m:S.markets.find(x=>x.id===id)||S.detail, side }; render(); };
 window.updatePayout = (price)=>{ const v=parseInt(document.getElementById("stake").value,10);
@@ -1411,7 +1440,7 @@ window.confirmStake = async ()=>{
   if(!v||v<500) return toast("Minimum call is \u20A6500");
   const r = await rpc("call_place", { p_market_id:S.trade.m.id, p_side:S.trade.side, p_amount:v });
   if(r.error) return toast(r.error);
-  S.profile.balance = r.balance; const side=S.trade.side; S.trade=null; S.detail=null;
+  S.profile.balance = r.balance; const side=S.trade.side; S.trade=null; S.detail=null; syncUrl();
   await loadMarkets(); render();
   toast(`Your ${side} call is in for ${N(v)}`);
 };
@@ -1619,6 +1648,14 @@ window.adminKyc = async (u, status)=>{
   }
   render(); toast("KYC " + status + ". Logged to the audit trail");
 };
+window.copyMarketLink = ()=>{
+  if(!S.detail) return;
+  const s = slugify(S.detail.question);
+  const link = "https://www.wanana.africa/market/" + S.detail.id + (s ? "-" + s : "");
+  const done = ()=>toast("Market link copied. Send it to your people");
+  if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(link).then(done, ()=>prompt("Copy this market link:", link)); }
+  else prompt("Copy this market link:", link);
+};
 window.copyRef = ()=>{
   const link = "https://www.wanana.africa/?ref=" + (S.profile.referralCode||"");
   const done = ()=>toast("Invite link copied. Share it far");
@@ -1696,7 +1733,13 @@ sb.auth.onAuthStateChange((event, session)=>{
   setTimeout(async ()=>{
     try{
       if(event === "SIGNED_IN" || event === "INITIAL_SESSION" || event === "TOKEN_REFRESHED" || event === "USER_UPDATED"){
-        if(session){ await withTimeout(Promise.all([loadProfile(), refreshCalls()]).catch(()=>null), 8000); checkWins(); }
+        if(session){ await withTimeout(Promise.all([loadProfile(), refreshCalls()]).catch(()=>null), 8000); checkWins();
+          if(S.pendingRoute && S.profile){
+            const pr = S.pendingRoute; S.pendingRoute = null;
+            if(pr.marketId) await openDetail(pr.marketId, true);
+            else if(pr.tab !== "home") await go(pr.tab, true);
+          }
+        }
       }
       if(event === "SIGNED_OUT"){ S.profile = null; S.myCalls = []; }
     }catch(e){}
@@ -1718,6 +1761,18 @@ sb.auth.onAuthStateChange((event, session)=>{
     await withTimeout(loadMarkets(), 8000);
     render();
     if(S.session){ await withTimeout(Promise.all([loadProfile(), refreshCalls()]), 8000); checkWins(); }
+  }catch(e){}
+  /* Route from the URL: /market/42 opens that market, /calls opens Your calls, etc.
+     If the visitor is signed out, remember where they wanted to go and take them
+     there right after sign-in. */
+  try{
+    const r0 = routeFromPath();
+    if(S.session && S.profile){
+      if(r0.marketId) await openDetail(r0.marketId, true);
+      else if(r0.tab !== "home") await go(r0.tab, true);
+    } else if(r0.marketId || r0.tab !== "home"){
+      S.pendingRoute = r0;
+    }
   }catch(e){}
   render();
 })();
