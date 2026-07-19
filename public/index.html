@@ -345,6 +345,19 @@ async function rpc(fn, args){
     return { error: "Network hiccup. Check your connection and try again." };
   }
 }
+/* Client error reporting: the first few errors per session are sent home,
+   so real-device breakage (especially low-end Android) becomes visible in
+   the Admin Health panel. Capped client-side and server-side. */
+let __errSent = 0;
+function reportClientError(msg, src){
+  try{
+    if(__errSent >= 5 || !S.session) return;
+    __errSent++;
+    rpc("client_error_log", { p_message: String(msg||"Unknown error").slice(0,500), p_source: String(src||"").slice(0,200) });
+  }catch(e){}
+}
+window.addEventListener("error", e => reportClientError(e.message, (e.filename||"") + ":" + (e.lineno||"")));
+window.addEventListener("unhandledrejection", e => reportClientError(e.reason && (e.reason.message || e.reason), "promise"));
 async function loadMarkets(){
   const { data, error } = await sb.from("markets").select("*").eq("status","live").order("created_at",{ascending:false});
   if(!error && Array.isArray(data)) S.markets = data;
@@ -369,10 +382,11 @@ async function loadLedger(){
 }
 async function loadAdmin(){
   if(!S.profile || !S.profile.isAdmin) return;
-  const [m, d, l, u, c, a, rc, cr] = await Promise.all([
+  const [m, d, l, u, c, a, rc, cr, hh] = await Promise.all([
     rpc("admin_markets"), rpc("admin_disputes"), rpc("admin_ledger_recent"),
     rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent"),
-    rpc("admin_review_config_get"), rpc("admin_cancel_requests")]);
+    rpc("admin_review_config_get"), rpc("admin_cancel_requests"), rpc("admin_health")]);
+  S.admin.health = hh && !hh.error ? hh : null;
   S.admin.reviewCfg = rc && !rc.error ? rc : null;
   S.admin.cancelReqs = Array.isArray(cr) ? cr : [];
   S.admin.markets  = Array.isArray(m) ? m : [];
@@ -601,6 +615,7 @@ function authBox(){
       ${pwField("a_pass","Password","new-password","At least 8 characters")}
       ${pwField("a_pass2","Confirm password","new-password","Type it again")}
       <button class="cta" ${busy} onclick="doSignUp()">Create your Wanana account</button>
+      <p class="note" style="margin-top:10px">By creating your account you agree to Wanana's <a href="/legal.html" style="color:var(--slate)">Terms, Privacy and Responsible Play</a> and confirm you are 18 or older.</p>
       <div class="alinks">
         <button class="alink" onclick="authGo('signin')">Already on Wanana? Sign in</button>
         <button class="alink" onclick="authGo('otp')">Use a one-time code</button>
@@ -727,6 +742,7 @@ function profileSetupView(){
           <div class="field"><label>Referral code (optional)</label>
             <input id="p_ref" maxlength="6" placeholder="e.g. 3EA0AE" value="${esc(S.refPrefill)}" style="text-transform:uppercase" /></div>
           <button class="cta" ${S.busy?"disabled":""} onclick="doProfileSetup()">Make your first call</button>
+          <p class="note" style="margin-top:10px">By continuing you agree to Wanana's <a href="/legal.html" style="color:var(--slate)">Terms, Privacy and Responsible Play</a> and confirm you are 18 or older.</p>
           <div class="alinks"><button class="alink" onclick="doSignOut()">Sign out</button></div>
         </div>
       </div>
@@ -1019,7 +1035,7 @@ const views = {
     return `<div class="pad">
       <h2 class="tabtitle">Admin</h2>
       <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
-      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
+      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}${seg("health","Health")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
           ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
@@ -1082,6 +1098,44 @@ const views = {
           <b style="color:var(--glow)">${esc(a.actor)}</b> ${a.action.replace(/_/g," ")}${a.market_id?` · market #${a.market_id}`:""}${a.target?` · ${esc(a.target)}`:""}
           <span style="color:var(--slate)"> · ${new Date(a.created_at).toLocaleString()}</span>
         </div>`).join("") || "No admin actions yet."}</div>` : ""}
+      ${A.panel==="health" ? (()=>{
+        const h = A.health;
+        if(!h) return `<div class="empty">Health data unavailable. Refresh the Admin tab.</div>`;
+        const age = Number(h.settle_age_seconds||0);
+        const okBeat = age < 1200; /* two missed 10-min runs = red */
+        const mins = Math.round(age/60);
+        const beatLabel = age < 90 ? "moments ago" : mins < 60 ? mins + " min ago" : Math.round(mins/60) + "h " + (mins%60) + "m ago";
+        const det = h.settle_detail || {};
+        return `
+        <div class="card" style="margin-bottom:12px;border-top:3px solid ${okBeat?"var(--teal)":"var(--coral)"}">
+          <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">
+            <div style="font-family:var(--disp);font-weight:600;font-size:14px"><span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${okBeat?"var(--teal)":"var(--coral)"};margin-right:7px;${okBeat?"box-shadow:0 0 6px var(--teal)":""}"></span>Settlement sweep</div>
+            <span style="font-size:12.5px;color:${okBeat?"var(--slate)":"var(--coral)"};font-weight:${okBeat?"400":"700"}">${okBeat ? "Last run " + beatLabel : "\u26A0 Last run " + beatLabel + " - check pg_cron"}</span>
+          </div>
+          <div style="font-size:12px;color:var(--slate);margin-top:6px">Runs every 10 minutes. Last sweep: ${det.settled??0} settled \u00b7 ${det.moved_to_verification??0} moved to verification \u00b7 ${det.held_for_review??0} held for dispute review.</div>
+        </div>
+        <div class="card" style="margin-bottom:12px">
+          <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Email pipeline</div>
+          <div style="font-size:12.5px;color:var(--slate)">Last email sent: ${h.last_email_sent ? new Date(h.last_email_sent).toLocaleString() : "none yet"} \u00b7 ${h.emails_pending??0} pending in queue${Number(h.emails_pending)>20?` <span style=\"color:var(--coral)\">\u26A0 queue is backing up</span>`:""}</div>
+        </div>
+        <div class="statgrid">
+          <div class="stat"><div class="l">Signups \u00b7 7d</div><div class="v">${h.signups_7d??0}</div></div>
+          <div class="stat"><div class="l">Calls \u00b7 7d</div><div class="v">${h.calls_7d??0}</div></div>
+          <div class="stat"><div class="l">Markets \u00b7 7d</div><div class="v">${h.markets_7d??0}</div></div>
+          <div class="stat"><div class="l">Shares \u00b7 7d</div><div class="v">${h.shares_7d??0}</div></div>
+        </div>
+        <div class="card">
+          <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px">
+            <div style="font-family:var(--disp);font-weight:600;font-size:14px">Client errors \u00b7 24h</div>
+            <span style="font-size:12.5px;color:${Number(h.errors_24h)>0?"var(--glow)":"var(--slate)"}">${h.errors_24h??0} recorded</span>
+          </div>
+          ${(h.recent_errors||[]).length ? h.recent_errors.map(e=>`<div style="padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
+            <span style="color:var(--coral)">${esc(e.msg)}</span>
+            <div style="color:var(--slate);margin-top:2px">${esc(e.who||"")} \u00b7 ${esc(e.src||"")} \u00b7 ${esc(e.at||"")}</div>
+          </div>`).join("") : `<div style="font-size:12px;color:var(--slate)">Nothing reported. Quiet is good.</div>`}
+        </div>
+        <p class="note">Signups, calls, markets and shares are counted from the events table (written automatically). Client errors are reported by the app itself, capped per user. This panel is read-only and admin-only.</p>`;
+      })() : ""}
     </div>`;
   },
 };
@@ -1709,6 +1763,7 @@ window.adminKyc = async (u, status)=>{
 };
 window.copyMarketLink = ()=>{
   if(!S.detail) return;
+  rpc("event_log", { p_event: "share_clicked", p_meta: { market_id: S.detail.id } });
   const s = slugify(S.detail.question);
   const link = "https://www.wanana.africa/market/" + S.detail.id + (s ? "-" + s : "");
   const done = ()=>toast("Market link copied. Send it to your people");
@@ -1716,6 +1771,7 @@ window.copyMarketLink = ()=>{
   else prompt("Copy this market link:", link);
 };
 window.copyRef = ()=>{
+  rpc("event_log", { p_event: "share_clicked", p_meta: { kind: "referral" } });
   const link = "https://www.wanana.africa/?ref=" + (S.profile.referralCode||"");
   const done = ()=>toast("Invite link copied. Share it far");
   if(navigator.clipboard && navigator.clipboard.writeText){ navigator.clipboard.writeText(link).then(done, ()=>prompt("Copy your invite link:", link)); }
