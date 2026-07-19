@@ -222,28 +222,6 @@ nav.bottom button.on::before{content:"";position:absolute;top:0;left:50%;transfo
 @media (min-width:1280px){
   .hero-in{gap:80px}
 }
-/* ---------- Site footer (all pages) ---------- */
-.site-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-top:1px solid var(--line);padding:18px 0 34px;margin-top:6px}
-.sf-left{font-size:12px;color:var(--slate);line-height:1.6}
-.sf-socials{display:flex;gap:18px;align-items:center}
-.soc{color:var(--slate);display:inline-flex;transition:color .15s ease,transform .15s ease}
-.soc:hover{color:var(--orange);transform:translateY(-1px)}
-.footwrap{width:100%;max-width:1200px;margin:26px auto 0;padding:0 16px}
-/* --- Live polish: motion, skeletons, win burst --- */
-.bar .y{transition:width .6s cubic-bezier(.3,1,.4,1)}
-.bar .spark{transition:left .6s cubic-bezier(.3,1,.4,1)}
-.btn-yes,.btn-no,.chip,.cta{transition:transform .08s ease}
-.btn-yes:active,.btn-no:active,.chip:active,.cta:active{transform:scale(.95)}
-.tleft.soon{color:var(--coral);font-weight:600}
-@keyframes shimmer{0%{background-position:-400px 0}100%{background-position:400px 0}}
-.skel{border:1px solid var(--line);border-radius:12px;padding:16px;margin-bottom:12px}
-.skel .ln{height:12px;border-radius:6px;background:linear-gradient(90deg,var(--card) 25%,#1B2258 37%,var(--card) 63%);background-size:400px 100%;animation:shimmer 1.3s infinite linear;margin-bottom:10px}
-@keyframes poolflash{0%{color:var(--glow)}100%{color:inherit}}
-.poolflash{animation:poolflash .7s ease}
-@keyframes wpop{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--dx),var(--dy)) scale(.25);opacity:0}}
-.wpart{position:absolute;top:34%;left:50%;width:9px;height:9px;border-radius:50%;pointer-events:none;animation:wpop .95s ease-out forwards}
-.sparkline{display:block;width:100%;height:44px;margin:2px 0 2px}
-@media (prefers-reduced-motion: reduce){*,*::before,*::after{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
@@ -273,12 +251,12 @@ const S = {
   authEmail: "",
   authMsg: null,          // { text, err }
   busy: false,
-  markets: [], myCalls: [], detailHist: [], loadingMarkets: false,
+  markets: [], myCalls: [],
   tab: "home", cat: "All", query: "",
   detail: null, trade: null, comments: [], disc: null, discSort: "top", replyTo: null,
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", fT: "all", q: "", fA: "all", userDetail: null, expFrom: "", expTo: "" },
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
   myMarkets: [], editMarket: null, badges: [], weekBoard: null, boardMode: "week",
 };
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
@@ -325,104 +303,8 @@ async function rpc(fn, args){
   }
 }
 async function loadMarkets(){
-  if(!S.markets.length) S.loadingMarkets = true;
   const { data, error } = await sb.from("markets").select("*").eq("status","live").order("created_at",{ascending:false});
   if(!error && Array.isArray(data)) S.markets = data;
-  S.loadingMarkets = false;
-  initRealtime();
-}
-
-/* ---------------- Live engine: realtime pools, countdowns, motion ---------------- */
-let _rtChannel = null;
-function initRealtime(){
-  if(_rtChannel) return;
-  try{
-    _rtChannel = sb.channel("markets-live")
-      .on("postgres_changes", { event:"UPDATE", schema:"public", table:"markets" }, p=>applyMarketUpdate(p.new))
-      .subscribe();
-  }catch(e){ _rtChannel = null; }
-}
-function sheetBusy(){ return !!(S.trade || S.dispute || S.pay || S.admin.userDetail); }
-function applyMarketUpdate(row){
-  if(!row || !row.id) return;
-  const i = S.markets.findIndex(m=>m.id===row.id);
-  if(i >= 0){
-    if(row.status && row.status !== "live"){
-      S.markets.splice(i,1);
-      if(S.detail && S.detail.id===row.id) S.detail = Object.assign({}, S.detail, row);
-      if(!sheetBusy()) render();
-      return;
-    }
-    S.markets[i] = Object.assign({}, S.markets[i], row);
-  }
-  if(S.detail && S.detail.id===row.id) S.detail = Object.assign({}, S.detail, row);
-  patchMarketDom(row.id);
-}
-function patchMarketDom(id){
-  const m = (S.detail && S.detail.id===id) ? S.detail : S.markets.find(x=>x.id===id);
-  if(!m) return;
-  const y = yesPct(m);
-  document.querySelectorAll(`[data-mid="${id}"]`).forEach(el=>{
-    const yb = el.querySelector(".bar .y"), sp = el.querySelector(".bar .spark");
-    if(yb) yb.style.width = y+"%";
-    if(sp) sp.style.left = y+"%";
-    el.querySelectorAll("[data-ypct]").forEach(n=>n.textContent = y+"%");
-    el.querySelectorAll("[data-npct]").forEach(n=>n.textContent = (100-y)+"%");
-    const pl = el.querySelector("[data-pool]");
-    if(pl){
-      pl.textContent = Number(m.yes_pool+m.no_pool).toLocaleString("en-NG");
-      pl.classList.remove("poolflash"); void pl.offsetWidth; pl.classList.add("poolflash");
-    }
-  });
-}
-function tickCountdowns(){
-  document.querySelectorAll(".tleft[data-ends]").forEach(el=>{
-    const r = fmtLeft(el.getAttribute("data-ends"));
-    el.textContent = r.text;
-    el.classList.toggle("soon", r.soon);
-  });
-}
-setInterval(tickCountdowns, 30000);
-function sparklineSvg(hist){
-  if(!Array.isArray(hist) || hist.length < 2) return `<div style="margin-bottom:10px"></div>`;
-  const pts = hist.map(h=>{ const t = Number(h.yes_pool)+Number(h.no_pool); return t>0 ? Number(h.yes_pool)/t*100 : 50; });
-  const w = 200, hh = 36, pad = 3;
-  const min = Math.min(...pts), max = Math.max(...pts), rng = (max-min) || 1;
-  const xy = pts.map((p,i)=>[ (i/(pts.length-1))*(w-2*pad)+pad, hh-pad-((p-min)/rng)*(hh-2*pad) ]);
-  const path = xy.map((c,i)=>(i?"L":"M")+c[0].toFixed(1)+" "+c[1].toFixed(1)).join(" ");
-  const last = xy[xy.length-1];
-  return `<svg class="sparkline" viewBox="0 0 ${w} ${hh}" preserveAspectRatio="none" aria-hidden="true">
-      <path d="${path}" fill="none" stroke="var(--teal)" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
-      <circle cx="${last[0].toFixed(1)}" cy="${last[1].toFixed(1)}" r="2.6" fill="var(--orange)"/></svg>
-    <div style="font-size:11px;color:var(--slate);margin:0 0 12px">Crowd price on YES since this market opened</div>`;
-}
-function animateBalance(){
-  if(!S.profile) return;
-  const el = document.querySelector("[data-bal]");
-  const target = Number(S.profile.balance);
-  if(!el){ S._balShown = target; return; }
-  const from = (typeof S._balShown === "number") ? S._balShown : target;
-  if(from === target) return;
-  const t0 = performance.now(), dur = 650;
-  (function step(t){
-    const k = Math.min(1, (t-t0)/dur), e = 1-Math.pow(1-k,3);
-    el.textContent = Math.round(from+(target-from)*e).toLocaleString("en-NG");
-    if(k < 1) requestAnimationFrame(step); else S._balShown = target;
-  })(t0);
-}
-function animateWinAmt(){
-  const el = document.querySelector("[data-winamt]");
-  if(!el) return;
-  const target = Number(el.getAttribute("data-winamt"));
-  const key = el.getAttribute("data-winkey");
-  if(S._winShownKey === key){ el.textContent = "+\u20A6" + target.toLocaleString("en-NG"); return; }
-  S._winShownKey = key;
-  const t0 = performance.now(), dur = 1100;
-  (function step(t){
-    const k = Math.min(1, (t-t0)/dur), e = 1-Math.pow(1-k,3);
-    el.textContent = "+\u20A6" + Math.round(target*e).toLocaleString("en-NG");
-    if(k < 1) requestAnimationFrame(step);
-  })(t0);
 }
 async function loadComments(id){
   const r = await rpc("market_comments", { p_market_id: id });
@@ -435,7 +317,7 @@ async function loadProfile(){
   if(!S.session){ S.profile = null; return; }
   let me = await rpc("me");
   if(me && me.error){ await new Promise(r=>setTimeout(r, 700)); me = await rpc("me"); }
-  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, role: me.role || (me.is_admin ? "admin" : "user"), referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
+  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
 }
 async function loadLedger(){
   if(!S.session) return;
@@ -443,16 +325,7 @@ async function loadLedger(){
   S.ledger = Array.isArray(r) ? r : [];
 }
 async function loadAdmin(){
-  const role = staffRole();
-  if(!role || !["admin","auditor","analyst"].includes(role)) return;
-  if(role==="auditor"){
-    if(!["ledger","audit","export"].includes(S.admin.panel)) S.admin.panel = "ledger";
-    const [l, a] = await Promise.all([rpc("admin_ledger_recent"), rpc("admin_audit_recent")]);
-    S.admin.ledger = Array.isArray(l) ? l : [];
-    S.admin.audit  = Array.isArray(a) ? a : [];
-    return;
-  }
-  if(role==="analyst"){ S.admin.panel = "export"; return; }
+  if(!S.profile || !S.profile.isAdmin) return;
   const [m, d, l, u, c, a, rc, cr] = await Promise.all([
     rpc("admin_markets"), rpc("admin_disputes"), rpc("admin_ledger_recent"),
     rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent"),
@@ -588,42 +461,25 @@ function sparkNet(){
   </svg>`;
 }
 
-function fmtLeft(endsOn){
-  const end = new Date(endsOn + "T23:59:59");
-  const ms = end - Date.now();
-  if(isNaN(ms)) return { text: "ends " + endsOn, soon: false };
-  if(ms <= 0) return { text: "closing now", soon: true };
-  const mins = Math.floor(ms/60000), h = Math.floor(mins/60), d = Math.floor(h/24);
-  if(d >= 2) return { text: "ends in " + d + "d", soon: false };
-  if(h >= 24) return { text: "ends in 1d " + (h-24) + "h", soon: false };
-  if(h >= 1) return { text: "ends in " + h + "h " + (mins%60) + "m", soon: true };
-  return { text: "ends in " + Math.max(1,mins) + "m", soon: true };
-}
 function marketCard(m, interactive=true){
   const y = yesPct(m);
-  const tl = fmtLeft(m.ends_on);
-  return `<div class="card" data-mid="${m.id}" ${interactive?`onclick="openDetail(${m.id})" role="button" tabindex="0"`:""}>
+  return `<div class="card" ${interactive?`onclick="openDetail(${m.id})" role="button" tabindex="0"`:""}>
     <div class="meta"><span class="cat">${m.category}</span><span class="live"><span class="dot"></span>LIVE</span></div>
     <div class="q">${esc(m.question)}</div>
     <div class="bar"><div class="y" style="width:${y}%"></div><div class="n"></div><div class="spark" style="left:${y}%"></div></div>
     ${interactive?`<div class="row">
-      <button class="btn-yes" onclick="event.stopPropagation();openTrade(${m.id},'YES')">YES <span data-ypct>${y}%</span></button>
-      <button class="btn-no" onclick="event.stopPropagation();openTrade(${m.id},'NO')">NO <span data-npct>${100-y}%</span></button>
+      <button class="btn-yes" onclick="event.stopPropagation();openTrade(${m.id},'YES')">YES ${y}%</button>
+      <button class="btn-no" onclick="event.stopPropagation();openTrade(${m.id},'NO')">NO ${100-y}%</button>
     </div>`:`<div class="row">
-      <span class="btn-yes">YES <span data-ypct>${y}%</span></span><span class="btn-no">NO <span data-npct>${100-y}%</span></span>
+      <span class="btn-yes">YES ${y}%</span><span class="btn-no">NO ${100-y}%</span>
     </div>`}
-    <div class="stats"><span><span class="coin">\u20A6</span> <b data-pool>${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</b> in the pool</span><span>\u{1F4AC} ${m.comment_count||0} \u00b7 <span class="tleft ${tl.soon?"soon":""}" data-ends="${esc(m.ends_on)}">${tl.text}</span></span></div>
+    <div class="stats"><span><span class="coin">\u20A6</span> <b>${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</b> in the pool</span><span>\u{1F4AC} ${m.comment_count||0} \u00b7 ends ${esc(m.ends_on)}</span></div>
   </div>`;
 }
 
 const NAV_ITEMS = [["home","Markets"],["insights","Insights"],["create","Create"],["calls","Your calls"],["wallet","Balance"]];
-function staffRole(){ return S.profile ? S.profile.role : null; }
 function navItems(){
-  const r = staffRole();
-  if(r==="admin") return NAV_ITEMS.concat([["admin","Admin"]]);
-  if(r==="auditor") return NAV_ITEMS.concat([["admin","Audit"]]);
-  if(r==="analyst") return NAV_ITEMS.concat([["admin","Data"]]);
-  return NAV_ITEMS;
+  return S.profile && S.profile.isAdmin ? NAV_ITEMS.concat([["admin","Admin"]]) : NAV_ITEMS;
 }
 function navButtons(){
   return navItems().map(([k,l])=>`<button class="${S.tab===k?"on":""}" onclick="go('${k}')">${l}</button>`).join("");
@@ -640,7 +496,10 @@ function render(){
       <button onclick="go('home')" aria-label="Wanana home" style="display:flex;align-items:center;padding:0">${WORDMARK}</button>
       <div class="topnav" role="navigation" aria-label="Main">${navButtons()}</div>
       <div style="display:flex;align-items:center;gap:10px">
-        <div class="balance"><span class="naira">\u20A6</span><span data-bal>${Number(S.profile.balance).toLocaleString("en-NG")}</span></div>
+        <button class="balance" onclick="go('wallet')" aria-label="Your demo balance" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.1;cursor:pointer">
+          <span style="font-size:8.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.08em">Demo balance</span>
+          <span><span class="naira">\u20A6</span>${Number(S.profile.balance).toLocaleString("en-NG")}</span>
+        </button>
         <button onclick="go('profile')" aria-label="Your profile" style="padding:0;border-radius:50%">${avatarHtml(S.profile.avatarUrl, S.profile.username, 34)}</button>
       </div>
     </div></header>
@@ -652,11 +511,8 @@ function render(){
     ${S.admin.userDetail ? userDetailSheet() : ""}
     ${S.help ? helpSheet() : ""}
     ${S.wins.length ? victorySheet() : ""}
-    <div class="footwrap">${siteFooter()}</div>
     <nav class="bottom" aria-label="Main">${navButtons()}</nav>
   </div>`;
-  animateBalance();
-  animateWinAmt();
 }
 
 /* ---------------- Auth views ---------------- */
@@ -744,19 +600,6 @@ function authBox(){
     </div>`;
 }
 
-function siteFooter(){
-  return `<div class="site-footer">
-        <div class="sf-left">\u00A9 2026 Wanana \u00B7 A game of skill \u00B7 18+ only \u00B7 <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></div>
-        <div class="sf-socials" aria-label="Wanana on social media">
-          <a class="soc" href="https://www.instagram.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Instagram" title="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.56.22.96.48 1.38.9.42.42.68.82.9 1.38.17.4.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.4.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.17-.4-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.4-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2m0-2.2C8.7 0 8.3 0 7 .07 5.8.13 4.9.33 4.1.63c-.8.32-1.5.74-2.2 1.44A6 6 0 0 0 .63 4.26C.33 5.06.13 5.96.07 7.26 0 8.56 0 8.96 0 12.16s0 3.6.07 4.9c.06 1.3.26 2.2.56 3 .32.8.74 1.5 1.44 2.2.7.7 1.4 1.12 2.2 1.44.8.3 1.7.5 3 .56 1.3.07 1.7.07 4.9.07s3.6 0 4.9-.07c1.3-.06 2.2-.26 3-.56a6 6 0 0 0 2.2-1.44 6 6 0 0 0 1.44-2.2c.3-.8.5-1.7.56-3 .07-1.3.07-1.7.07-4.9s0-3.6-.07-4.9c-.06-1.3-.26-2.2-.56-3a6 6 0 0 0-1.44-2.2A6 6 0 0 0 19.96.63c-.8-.3-1.7-.5-3-.56C15.66 0 15.26 0 12.06 0h-.06Zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4Zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-11.8a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z"/></svg></a>
-          <a class="soc" href="https://www.tiktok.com/@wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on TikTok" title="TikTok"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 6.7a5.6 5.6 0 0 1-3.4-1.1 5.6 5.6 0 0 1-2.2-3.4h-3.5v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9.2a6.4 6.4 0 0 0-.9-.06 6.4 6.4 0 1 0 6.4 6.4V8.9a9 9 0 0 0 5.6 1.9V7.3c-.66 0-1.3-.2-2-.6Z"/></svg></a>
-          <a class="soc" href="https://x.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on X" title="X"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23Zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64Z"/></svg></a>
-          <a class="soc" href="https://www.facebook.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Facebook" title="Facebook"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12a10 10 0 1 0-11.56 9.87v-6.98H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.98A10 10 0 0 0 22 12Z"/></svg></a>
-          <a class="soc" href="https://www.linkedin.com/company/wanana-africa" target="_blank" rel="noopener" aria-label="Wanana on LinkedIn" title="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0Z"/></svg></a>
-        </div>
-      </div>`;
-}
-
 function heroView(){
   const previews = (S.markets||[]).slice(0,3).map(m=>marketCard(m,false)).join("");
   return `<div class="hero">
@@ -793,7 +636,17 @@ function heroView(){
         </div>`).join("")}
       </div>
       <p style="font-size:12.5px;color:var(--slate);line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path from Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend, with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
-      ${siteFooter()}
+      <div class="site-footer">
+        <div class="sf-left">\u00A9 2026 Wanana \u00B7 A game of skill \u00B7 18+ only \u00B7 <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></div>
+        <div class="sf-socials" aria-label="Wanana on social media">
+          <a class="soc" href="https://www.instagram.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Instagram" title="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.56.22.96.48 1.38.9.42.42.68.82.9 1.38.17.4.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.4.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.17-.4-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.4-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2m0-2.2C8.7 0 8.3 0 7 .07 5.8.13 4.9.33 4.1.63c-.8.32-1.5.74-2.2 1.44A6 6 0 0 0 .63 4.26C.33 5.06.13 5.96.07 7.26 0 8.56 0 8.96 0 12.16s0 3.6.07 4.9c.06 1.3.26 2.2.56 3 .32.8.74 1.5 1.44 2.2.7.7 1.4 1.12 2.2 1.44.8.3 1.7.5 3 .56 1.3.07 1.7.07 4.9.07s3.6 0 4.9-.07c1.3-.06 2.2-.26 3-.56a6 6 0 0 0 2.2-1.44 6 6 0 0 0 1.44-2.2c.3-.8.5-1.7.56-3 .07-1.3.07-1.7.07-4.9s0-3.6-.07-4.9c-.06-1.3-.26-2.2-.56-3a6 6 0 0 0-1.44-2.2A6 6 0 0 0 19.96.63c-.8-.3-1.7-.5-3-.56C15.66 0 15.26 0 12.06 0h-.06Zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4Zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-11.8a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z"/></svg></a>
+          <a class="soc" href="https://www.tiktok.com/@wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on TikTok" title="TikTok"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 6.7a5.6 5.6 0 0 1-3.4-1.1 5.6 5.6 0 0 1-2.2-3.4h-3.5v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9.2a6.4 6.4 0 0 0-.9-.06 6.4 6.4 0 1 0 6.4 6.4V8.9a9 9 0 0 0 5.6 1.9V7.3c-.66 0-1.3-.2-2-.6Z"/></svg></a>
+          <a class="soc" href="https://x.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on X" title="X"><svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M18.24 2.25h3.31l-7.23 8.26 8.5 11.24h-6.66l-5.21-6.82-5.97 6.82H1.67l7.73-8.84L1.25 2.25h6.83l4.71 6.23 5.45-6.23Zm-1.16 17.52h1.83L7.08 4.13H5.12l11.96 15.64Z"/></svg></a>
+          <a class="soc" href="https://www.facebook.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Facebook" title="Facebook"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M22 12a10 10 0 1 0-11.56 9.87v-6.98H7.9V12h2.54V9.8c0-2.5 1.49-3.89 3.77-3.89 1.09 0 2.24.2 2.24.2v2.46h-1.26c-1.24 0-1.63.77-1.63 1.56V12h2.78l-.44 2.89h-2.34v6.98A10 10 0 0 0 22 12Z"/></svg></a>
+          <a class="soc" href="https://www.linkedin.com/company/wanana-africa" target="_blank" rel="noopener" aria-label="Wanana on LinkedIn" title="LinkedIn"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M20.45 20.45h-3.55v-5.57c0-1.33-.03-3.04-1.85-3.04-1.86 0-2.14 1.45-2.14 2.94v5.67H9.35V9h3.41v1.56h.05c.47-.9 1.63-1.85 3.36-1.85 3.6 0 4.27 2.37 4.27 5.45v6.29ZM5.34 7.43a2.06 2.06 0 1 1 0-4.12 2.06 2.06 0 0 1 0 4.12ZM7.12 20.45H3.56V9h3.56v11.45ZM22.22 0H1.77C.79 0 0 .77 0 1.72v20.55C0 23.23.79 24 1.77 24h20.45c.98 0 1.78-.77 1.78-1.73V1.72C24 .77 23.2 0 22.22 0Z"/></svg></a>
+        </div>
+      </div>
+      <style>.site-footer{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:14px;border-top:1px solid var(--line);padding:18px 0 34px;margin-top:6px}.sf-left{font-size:12px;color:var(--slate);line-height:1.6}.sf-socials{display:flex;gap:18px;align-items:center}.soc{color:var(--slate);display:inline-flex;transition:color .15s ease,transform .15s ease}.soc:hover{color:var(--orange);transform:translateY(-1px)}</style>
     </div>
     </div>
   </div>`;
@@ -812,6 +665,11 @@ function profileSetupView(){
           ${authMsgHtml()}
           <div class="field"><label>Username</label>
             <input id="p_username" maxlength="20" placeholder="e.g. LagosOracle" /></div>
+          <div class="field"><label>Phone number</label>
+            <div style="display:flex;gap:8px">
+              <input value="+234" disabled aria-label="Country code" style="flex:0 0 72px;text-align:center;opacity:.7" />
+              <input id="p_phone" type="tel" inputmode="numeric" autocomplete="tel-national" maxlength="11" placeholder="801 234 5678" oninput="this.value=this.value.replace(/\D/g,'')" style="flex:1" />
+            </div></div>
           <div class="field"><label>Referral code (optional)</label>
             <input id="p_ref" maxlength="6" placeholder="e.g. 3EA0AE" value="${esc(S.refPrefill)}" style="text-transform:uppercase" /></div>
           <button class="cta" ${S.busy?"disabled":""} onclick="doProfileSetup()">Make your first call</button>
@@ -832,9 +690,7 @@ const views = {
     <div class="toolbar"><input placeholder="Search markets" value="${esc(S.query)}" oninput="S.query=this.value;renderMain()" aria-label="Search markets" /></div>
     <div class="chips">${CATS.map(c=>`<button class="chip ${c===S.cat?"on":""}" onclick="S.cat='${c}';renderMain()">${ARENA[c]||c}</button>`).join("")}</div>
     <div class="feed">
-      ${list.map(m=>marketCard(m)).join("") || (S.loadingMarkets
-        ? [1,2,3].map(()=>`<div class="skel"><div class="ln" style="width:28%"></div><div class="ln" style="width:88%"></div><div class="ln" style="width:64%"></div><div class="ln" style="width:100%;height:7px;border-radius:999px"></div><div class="ln" style="width:40%;margin-bottom:0"></div></div>`).join("")
-        : `<div class="empty">No open markets yet. Ask something Africa will argue about.</div>`)}
+      ${list.map(m=>marketCard(m)).join("") || `<div class="empty">No open markets yet. Ask something Africa will argue about.</div>`}
     </div>`;
   },
   insights(){
@@ -1104,18 +960,10 @@ const views = {
         <div class="row" style="margin-bottom:0">${acts.join("")}</div>
       </div>`;
     };
-    const role = staffRole();
-    const segs = role==="admin"
-      ? [seg("markets","Markets"),seg("disputes",`Disputes (${A.disputes.length})`),seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`),seg("ledger","Ledger"),seg("users","Users"),seg("comments","Comments"),seg("audit","Audit log"),seg("export","Export")]
-      : role==="auditor"
-      ? [seg("ledger","Ledger"),seg("audit","Audit log"),seg("export","Export")]
-      : [seg("export","Export")];
     return `<div class="pad">
-      <h2 class="tabtitle">${role==="admin"?"Admin":role==="auditor"?"Audit":"Data"}</h2>
-      <p class="sub">${role==="admin"?"Marketplace controls. Every action here is written to the audit log."
-        : role==="auditor"?"Read-only audit access. Every export you run is written to the audit log."
-        : "Read-only data extracts for analysis. Every export you run is written to the audit log."}</p>
-      <div class="chips" style="padding-left:0">${segs.join("")}</div>
+      <h2 class="tabtitle">Admin</h2>
+      <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
+      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
           ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
@@ -1139,20 +987,14 @@ const views = {
             <button class="btn-no" onclick="cancelReqDecide(${r.id},false)">Decline</button>
           </div>
         </div>`).join("") : `<div class="empty">No cancellation requests waiting.</div>`) : ""}
-      ${A.panel==="ledger" ? `<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap">
-        <input placeholder="Search by user or note" value="${esc(A.q)}" onchange="S.admin.q=this.value;renderMain()" style="flex:1;min-width:160px;margin-bottom:0" />
-        <select onchange="S.admin.fT=this.value;renderMain()" style="width:auto;flex:0 0 auto">
-          <option value="all" ${(A.fT||"all")==="all"?"selected":""}>All actions</option>
-          ${[...new Set(A.ledger.map(l=>l.transaction_type))].sort().map(t=>`<option value="${esc(t)}" ${A.fT===t?"selected":""}>${esc(t.replace(/_/g," "))}</option>`).join("")}
-        </select>
-      </div>
-      <div class="card">${A.ledger.filter(l=>(!A.fT||A.fT==="all"||l.transaction_type===A.fT)).filter(l=>!A.q||(l.username+" "+l.transaction_type+" "+(l.notes||"")).toLowerCase().includes(A.q.toLowerCase())).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
+      ${A.panel==="ledger" ? `<input placeholder="Filter by user, type or note" value="${esc(A.q)}" onchange="S.admin.q=this.value;renderMain()" style="margin-bottom:10px" />
+      <div class="card">${A.ledger.filter(l=>!A.q||(l.username+" "+l.transaction_type+" "+(l.notes||"")).toLowerCase().includes(A.q.toLowerCase())).map(l=>`<div style="display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12px;flex-wrap:wrap">
           <span><b style="color:var(--glow)">${esc(l.username)}</b> ${l.transaction_type.replace(/_/g," ")} <span style="color:var(--slate)">${esc(l.notes||"")}</span></span>
           <span><b style="color:${l.amount>0?"var(--teal)":"var(--coral)"}">${l.amount>0?"+":""}${N(l.amount)}</b> <span style="color:var(--slate)">by ${esc(l.created_by)}</span></span>
         </div>`).join("") || "No entries yet."}</div>` : ""}
       ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
       <div class="card">${A.users.map(u=>`<div onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;cursor:pointer">
-          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${(u.role&&u.role!=="user")?' <span class="cat" style="color:'+(u.role==="admin"?"var(--orange)":u.role==="auditor"?"var(--teal)":"var(--glow)")+'">'+u.role.toUpperCase()+'</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':u.kyc_status==="verified"?' <span class="cat" style="color:var(--teal)">KYC \u2713</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
+          <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
           <b>${N(u.balance)} ›</b>
         </div>`).join("") || "No users yet."}</div>` : ""}
       ${A.panel==="comments" ? (()=>{
@@ -1161,10 +1003,9 @@ const views = {
           f==="all" ? true :
           f==="reported" ? c.open_reports>0 :
           f==="unreviewed" ? !c.reviewed :
-          f==="reviewed" ? c.reviewed :
           c.status===f);
         return `<div class="chips" style="padding-left:0">
-          ${[["all","All"],["reported",`Reported (${A.comments.filter(c=>c.open_reports>0).length})`],["unreviewed",`Unreviewed (${A.comments.filter(c=>!c.reviewed).length})`],["reviewed",`Reviewed (${A.comments.filter(c=>c.reviewed).length})`],["hidden","Hidden"],["removed","Removed"]].map(([k,l])=>`<button class="chip ${A.fCm===k?"on":""}" onclick="S.admin.fCm='${k}';renderMain()">${l}</button>`).join("")}
+          ${[["all","All"],["reported",`Reported (${A.comments.filter(c=>c.open_reports>0).length})`],["unreviewed","Unreviewed"],["hidden","Hidden"],["removed","Removed"]].map(([k,l])=>`<button class="chip ${A.fCm===k?"on":""}" onclick="S.admin.fCm='${k}';renderMain()">${l}</button>`).join("")}
         </div>
         ${L.map(c=>`<div class="card" style="margin-bottom:10px">
           <div class="meta"><span class="cat" style="color:${c.status==="visible"?"var(--teal)":c.status==="hidden"?"var(--glow)":"var(--coral)"}">${c.status.toUpperCase()}</span>
@@ -1179,26 +1020,12 @@ const views = {
           </div>
         </div>`).join("") || `<div class="empty">Nothing in this queue.</div>`}`;})() : ""}
       ${A.panel==="audit" ? `<select onchange="S.admin.fA=this.value;renderMain()" style="margin-bottom:10px;width:auto">
-        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision","comment_moderation","pinned_update","data_export"].map(a=>`<option ${A.fA===a?"selected":""}>${a}</option>`).join("")}
+        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision","comment_moderation","pinned_update"].map(a=>`<option ${A.fA===a?"selected":""}>${a}</option>`).join("")}
       </select>
       <div class="card">${A.audit.filter(a=>A.fA==="all"||a.action===A.fA).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px">
           <b style="color:var(--glow)">${esc(a.actor)}</b> ${a.action.replace(/_/g," ")}${a.market_id?` · market #${a.market_id}`:""}${a.target?` · ${esc(a.target)}`:""}
           <span style="color:var(--slate)"> · ${new Date(a.created_at).toLocaleString()}</span>
         </div>`).join("") || "No admin actions yet."}</div>` : ""}
-      ${A.panel==="export" ? `<div class="card">
-        <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Export data as CSV</div>
-        <p class="note" style="margin-top:0">Optional date range (leave blank for everything, capped at 20,000 rows). Files open directly in Excel. Every export is recorded in the audit log with your name, the dataset and the row count.</p>
-        <div class="row" style="gap:8px;margin-bottom:12px;flex-wrap:wrap">
-          <label style="font-size:12px;color:var(--slate)">From <input type="date" id="exp_from" value="${esc(A.expFrom||"")}" onchange="S.admin.expFrom=this.value" style="width:auto"></label>
-          <label style="font-size:12px;color:var(--slate)">To <input type="date" id="exp_to" value="${esc(A.expTo||"")}" onchange="S.admin.expTo=this.value" style="width:auto"></label>
-        </div>
-        <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:0">
-          ${role!=="analyst" ? `<button class="chip" onclick="runExport('audit_log')">Audit log CSV</button>
-          <button class="chip" onclick="runExport('wallet_ledger')">Ledger CSV</button>` : ""}
-          <button class="chip" onclick="runExport('markets')">Markets CSV</button>
-          <button class="chip" onclick="runExport('calls')">Calls CSV</button>
-        </div>
-      </div>` : ""}
     </div>`;
   },
 };
@@ -1250,14 +1077,13 @@ function discussionBlock(){
 function detailSheet(){
   const m = S.detail; const y = yesPct(m);
   return `<div class="sheet-bg" onclick="S.detail=null;render()">
-    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Market detail" data-mid="${m.id}">
+    <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="Market detail">
       <div class="handle"></div>
       <div class="meta"><span class="cat">${m.category}</span><span class="live"><span class="dot"></span>LIVE</span></div>
       <div class="q" style="font-size:19.5px">${esc(m.question)}</div>
       <div class="bar" style="height:9px"><div class="y" style="width:${y}%"></div><div class="n"></div><div class="spark" style="left:${y}%"></div></div>
-      <div style="display:flex;justify-content:space-between;font-family:var(--disp);font-size:13.5px;font-weight:600;margin-bottom:6px">
-        <span style="color:var(--teal)">YES <span data-ypct>${y}%</span></span><span style="color:var(--coral)">NO <span data-npct>${100-y}%</span></span></div>
-      ${sparklineSvg(S.detailHist)}
+      <div style="display:flex;justify-content:space-between;font-family:var(--disp);font-size:13.5px;font-weight:600;margin-bottom:16px">
+        <span style="color:var(--teal)">YES ${y}%</span><span style="color:var(--coral)">NO ${100-y}%</span></div>
       ${(()=>{ const mine = S.myCalls.filter(c=>c.market_id===m.id);
         if(!mine.length) return "";
         const yes = mine.filter(c=>c.side==="YES").reduce((s,c)=>s+c.amount,0);
@@ -1288,87 +1114,20 @@ function victorySheet(){
   const onlyCreator = wins.every(w=>w.kind==="creator");
   const bits = ["\u{1F389}","\u{2728}","\u{1F3C6}","\u{1F525}","\u{2B50}","\u{1F389}","\u{2728}","\u{1F3C6}"];
   const conf = bits.map((b,i)=>`<span class="confetti" style="left:${8+i*12}%;animation-delay:${(i*0.28).toFixed(2)}s">${b}</span>`).join("");
-  const pcols = ["var(--orange)","var(--teal)","var(--glow)","var(--coral)"];
-  const parts = Array.from({length:14},(_,i)=>{
-    const ang = (i/14)*Math.PI*2, dist = 90 + (i%4)*34;
-    return `<span class="wpart" style="background:${pcols[i%4]};--dx:${Math.round(Math.cos(ang)*dist)}px;--dy:${Math.round(Math.sin(ang)*dist)}px;animation-delay:${(i%5)*0.05}s"></span>`;
-  }).join("");
   return `<div class="win-bg" onclick="winsSeen(${lastId})">
     <div class="win-card" onclick="event.stopPropagation()">
-      ${conf}${parts}
+      ${conf}
       <div style="font-family:var(--disp);font-weight:700;font-size:22px">${onlyCreator ? "Your market paid out" : "You called it"} \u{1F389}</div>
-      <div class="win-amt" data-winamt="${total}" data-winkey="${lastId}">+\u20A60</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : '"landed in your balance"'}</div>
+      <div class="win-amt">+\u20A6${total.toLocaleString("en-NG")}</div>
+      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : "landed in your balance"}</div>
       ${wins.map(w=>`<div style="text-align:left;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)">
         <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
         <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
       </div>`).join("")}
-      <div class="row" style="margin:16px 0 0;gap:8px">
-        <button class="cta" style="flex:1" onclick="winsSeen(${lastId})">Collect am</button>
-        <button class="chip" style="flex:1;border:1px solid var(--orange);color:var(--orange);font-weight:700" onclick="shareReceipt()">Share your receipt</button>
-      </div>
+      <button class="cta" style="margin-top:16px" onclick="winsSeen(${lastId})">Collect am</button>
       <p class="note" style="margin-bottom:0">Every settlement is verified against a public source, with a 48 hour dispute window first.</p>
     </div></div>`;
 }
-function receiptWrap(x, text, cx, y, maxW, lh, maxLines){
-  const words = String(text).split(" "); let line = "", lines = [];
-  for(const w of words){
-    const t = line ? line+" "+w : w;
-    if(x.measureText(t).width > maxW && line){ lines.push(line); line = w; } else line = t;
-  }
-  if(line) lines.push(line);
-  if(lines.length > maxLines){ lines = lines.slice(0, maxLines); lines[maxLines-1] = lines[maxLines-1].slice(0,-3)+"\u2026"; }
-  lines.forEach((l,i)=>x.fillText(l, cx, y+i*lh));
-  return lines.length;
-}
-window.shareReceipt = async ()=>{
-  if(!S.wins || !S.wins.length) return;
-  const w = S.wins.find(v=>v.kind!=="creator") || S.wins[0];
-  const cv = document.createElement("canvas"); cv.width = 1080; cv.height = 1080;
-  const x = cv.getContext("2d");
-  x.fillStyle = "#0B0E31"; x.fillRect(0,0,1080,1080);
-  const g = x.createRadialGradient(540,-60,60,540,-60,760);
-  g.addColorStop(0,"rgba(255,122,26,.22)"); g.addColorStop(1,"rgba(255,122,26,0)");
-  x.fillStyle = g; x.fillRect(0,0,1080,760);
-  x.strokeStyle = "#232B63"; x.lineWidth = 2;
-  x.strokeRect(60,60,960,960);
-  x.textAlign = "left"; x.textBaseline = "alphabetic";
-  x.font = "700 88px 'Space Grotesk', Arial, sans-serif";
-  const segs = [["wan","#F4F6FF"],["a","#FF7A1A"],["na","#F4F6FF"]];
-  let tw = 0; segs.forEach(s=>tw += x.measureText(s[0]).width);
-  let px = (1080-tw)/2;
-  segs.forEach(s=>{ x.fillStyle = s[1]; x.fillText(s[0], px, 205); px += x.measureText(s[0]).width; });
-  x.textAlign = "center";
-  x.fillStyle = "#8E95BE"; x.font = "600 32px 'Space Grotesk', Arial, sans-serif";
-  x.fillText(w.kind==="creator" ? "MY MARKET SETTLED" : "CALLED IT", 540, 320);
-  x.fillStyle = "#F4F6FF"; x.font = "700 48px 'Space Grotesk', Arial, sans-serif";
-  const nLines = receiptWrap(x, "\u201C"+(w.question||"")+"\u201D", 540, 400, 860, 62, 4);
-  let yPos = 400 + nLines*62 + 30;
-  if(w.outcome){
-    x.fillStyle = "#2DD4BF"; x.font = "600 34px Arial, sans-serif";
-    x.fillText("Verified outcome: "+w.outcome, 540, yPos); yPos += 90;
-  } else { yPos += 40; }
-  x.fillStyle = "#2DD4BF"; x.font = "800 110px 'Space Grotesk', Arial, sans-serif";
-  x.fillText("+\u20A6"+Number(w.amount).toLocaleString("en-NG"), 540, yPos+60);
-  x.fillStyle = "#8E95BE"; x.font = "500 28px Arial, sans-serif";
-  x.fillText("in demo credits \u00b7 a game of skill", 540, yPos+112);
-  x.strokeStyle = "#232B63"; x.beginPath(); x.moveTo(140,912); x.lineTo(940,912); x.stroke();
-  x.fillStyle = "#F4F6FF"; x.font = "600 32px Arial, sans-serif";
-  x.fillText("Africa argues about everything.", 540, 962);
-  x.fillStyle = "#FF7A1A"; x.font = "700 32px Arial, sans-serif";
-  x.fillText("wanana.africa"+(S.profile && S.profile.referralCode ? "/?ref="+S.profile.referralCode : ""), 540, 1004);
-  cv.toBlob(async b=>{
-    if(!b) return toast("Could not build your receipt. Try again");
-    const f = new File([b], "wanana_receipt.png", { type:"image/png" });
-    if(navigator.canShare && navigator.canShare({ files:[f] })){
-      try{ await navigator.share({ files:[f], title:"Wanana", text:"I called it on Wanana" }); return; }catch(e){ if(e && e.name==="AbortError") return; }
-    }
-    const a = document.createElement("a");
-    a.href = URL.createObjectURL(b); a.download = "wanana_receipt.png";
-    document.body.appendChild(a); a.click(); a.remove();
-    toast("Receipt saved. Post it");
-  }, "image/png");
-};
 
 function helpSheet(){
   const qa = [
@@ -1414,11 +1173,11 @@ function paySheet(){
     <div class="sheet" onclick="event.stopPropagation()" role="dialog" aria-label="${mode}">
       <div class="handle"></div>
       <div style="font-family:var(--disp);font-weight:700;font-size:18px;margin-bottom:6px">${mode}</div>
-      <p class="authmsg" style="margin-bottom:14px">Payments are not live yet. This is a demo balance.</p>
+      <p class="authmsg" style="margin-bottom:14px">Payments are not live yet. Everything here runs on demo credits.</p>
       <div class="field"><label>Amount</label><input inputmode="numeric" placeholder="₦ amount" disabled style="opacity:.55" /></div>
       <div class="row">
-        <button class="btn-yes" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo balance.')">Pay with Paystack</button>
-        <button class="btn-no" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. This is a demo balance.')">Pay with Flutterwave</button>
+        <button class="btn-yes" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. Everything here runs on demo credits.')">Pay with Paystack</button>
+        <button class="btn-no" style="opacity:.45;cursor:not-allowed;background:var(--card);color:var(--text);border:1px solid var(--line)" onclick="toast('Payments are not live yet. Everything here runs on demo credits.')">Pay with Flutterwave</button>
       </div>
       <p class="note">Real-money features will only go live after licensing, KYC and payment review. Until then, every balance on Wanana is a demo credit balance (NGN_DEMO). Nothing here is real money.</p>
     </div></div>`;
@@ -1435,7 +1194,7 @@ function userDetailSheet(){
       <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
         ${avatarHtml(null, u.username, 46)}
         <div>
-          <div style="font-family:var(--disp);font-weight:700;font-size:18px">${esc(u.username)}${(u.role&&u.role!=="user")?' <span class="cat" style="color:'+(u.role==="admin"?"var(--orange)":u.role==="auditor"?"var(--teal)":"var(--glow)")+'">'+u.role.toUpperCase()+'</span>':""}</div>
+          <div style="font-family:var(--disp);font-weight:700;font-size:18px">${esc(u.username)}${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}</div>
           <div style="font-size:12px;color:var(--slate)">Joined ${esc(u.joined)} · ${N(u.balance)} · KYC <span style="color:${kcol}">${k}</span>${u.kyc_masked?" ("+esc(u.kyc_masked)+")":""}</div>
         </div>
       </div>
@@ -1446,10 +1205,9 @@ function userDetailSheet(){
         ${k!=="rejected" ? `<button class="btn-no" onclick="adminKyc('${esc(u.username)}','rejected')">Reject KYC</button>` : ""}
       </div>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
-        ${u.username!==meAdminName ? `<label style="font-size:12px;color:var(--slate)">Role
-            <select onchange="if(this.value!=='${esc(u.role||"user")}')adminAssignRole('${esc(u.username)}',this.value);else this.blur()" style="width:auto;margin-left:6px">
-              ${["user","analyst","auditor","admin"].map(rr=>`<option value="${rr}" ${(u.role||"user")===rr?"selected":""}>${rr.charAt(0).toUpperCase()+rr.slice(1)}</option>`).join("")}
-            </select></label>`
+        ${u.username!==meAdminName ? (u.is_admin
+            ? `<button class="btn-no" onclick="adminRole('${esc(u.username)}',false)">Remove admin</button>`
+            : `<button class="btn-yes" onclick="adminRole('${esc(u.username)}',true)">Make admin</button>`)
           : `<span style="font-size:11.5px;color:var(--slate);padding:4px 2px">You cannot change your own role.</span>`}
         <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust balance</button>
       </div>
@@ -1460,7 +1218,7 @@ function userDetailSheet(){
         <span style="color:${c.side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700">${c.side} ${N(c.amount)}</span>
       </div>`).join("") : `<div style="color:var(--slate);font-size:12px">No calls yet.</div>`}
 
-      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Balance ledger</div>
+      <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Wallet ledger</div>
       ${(u.ledger&&u.ledger.length) ? u.ledger.map(l=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
         <span style="color:var(--slate)">${esc(l.notes||l.type.replace(/_/g," "))} <span style="opacity:.6">· ${esc(l.at)}</span></span>
         <b style="color:${l.amount>0?"var(--teal)":"var(--coral)"};white-space:nowrap">${l.amount>0?"+":""}${N(l.amount)}</b>
@@ -1490,8 +1248,8 @@ function tradeSheet(){
       <div class="handle"></div>
       <div style="font-family:var(--disp);font-weight:600;font-size:15.5px;line-height:1.4;margin-bottom:6px">${esc(m.question)}</div>
       <div style="font-size:13px;color:${side==="YES"?"var(--teal)":"var(--coral)"};font-weight:700;margin-bottom:16px">Calling ${side} at ${price}%</div>
-      <input id="stake" inputmode="numeric" placeholder="Stake amount, minimum \u20A6500" oninput="this.value=this.value.replace(/\\D/g,'');updatePayout()" style="font-size:16px;margin-bottom:10px" aria-label="Stake amount" />
-      <div class="row">${[1000,5000,20000].map(v=>`<button class="chip" style="flex:1;text-align:center" onclick="document.getElementById('stake').value='${v}';updatePayout()">${N(v)}</button>`).join("")}</div>
+      <input id="stake" inputmode="numeric" placeholder="Stake amount, minimum \u20A6500" oninput="this.value=this.value.replace(/\\D/g,'');updatePayout(${price})" style="font-size:16px;margin-bottom:10px" aria-label="Stake amount" />
+      <div class="row">${[1000,5000,20000].map(v=>`<button class="chip" style="flex:1;text-align:center" onclick="document.getElementById('stake').value='${v}';updatePayout(${price})">${N(v)}</button>`).join("")}</div>
       <div id="payout" style="font-size:13px;color:var(--slate);margin-bottom:14px;min-height:18px"></div>
       <button class="cta" style="background:${side==="YES"?"var(--teal)":"var(--coral)"}" onclick="confirmStake()">Make your call</button>
       <p class="note" style="text-align:center">Only stake what you choose. Play within your limit.</p>
@@ -1584,12 +1342,16 @@ window.doSetNewPassword = async ()=>{
 window.doProfileSetup = async ()=>{
   const u = ((document.getElementById("p_username")||{}).value || "").trim();
   if(u.length < 3){ setMsg("Username needs at least 3 characters", true); return render(); }
+  let phone = (((document.getElementById("p_phone")||{}).value)||"").replace(/\D/g,"");
+  if(phone.startsWith("234")) phone = phone.slice(3);
+  if(phone.startsWith("0")) phone = phone.slice(1);
+  if(!/^[789][01]\d{8}$/.test(phone)){ setMsg("Enter a valid Nigerian mobile number, like 0801 234 5678", true); return render(); }
   S.busy = true; render();
   const refCode = (((document.getElementById("p_ref")||{}).value)||"").trim();
-  const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null });
+  const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null, p_phone: "+234" + phone });
   S.busy = false;
   if(r.error){ setMsg(r.error, true); return render(); }
-  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, role: r.role || (r.is_admin ? "admin" : "user"), referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
+  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
   setMsg(null); await loadMarkets(); render();
   toast(`Welcome ${r.username}. ${N(r.balance)} demo credits to start. Make your call`);
 };
@@ -1624,29 +1386,11 @@ window.openDetail = async (id)=>{
     if(data) m = data;
   }
   if(!m) return toast("This market is not available right now");
-  S.detail = m; S.detailHist = [];
-  rpc("market_history", { p_market_id: id }).then(h=>{
-    if(Array.isArray(h) && S.detail && S.detail.id===id){ S.detailHist = h; render(); }
-  });
-  await loadComments(id); render();
+  S.detail = m; await loadComments(id); render();
 };
 window.openTrade = (id, side)=>{ S.trade = { m:S.markets.find(x=>x.id===id)||S.detail, side }; render(); };
-window.updatePayout = ()=>{
-  const v = parseInt((document.getElementById("stake")||{}).value, 10) || 0;
-  const out = document.getElementById("payout");
-  if(!out || !S.trade) return;
-  if(v < 500){ out.innerHTML = ""; return; }
-  const { m, side } = S.trade;
-  const mine  = Number(side==="YES" ? m.yes_pool : m.no_pool);
-  const other = Number(side==="YES" ? m.no_pool  : m.yes_pool);
-  if(other <= 0){
-    out.innerHTML = `Nobody has called ${side==="YES"?"NO":"YES"} yet. If that stays true, your full stake comes back at settlement. Every opposing call grows your payout.`;
-    return;
-  }
-  const pot = mine + other + v;
-  const est = Math.floor(pot * 0.94 * v / (mine + v));
-  out.innerHTML = `If your read lands you collect about <b style="color:var(--glow)">${N(est)}</b> at today's pool, after the 5% platform fee and 1% creator reward. This moves with every call until the market closes.`;
-};
+window.updatePayout = (price)=>{ const v=parseInt(document.getElementById("stake").value,10);
+  document.getElementById("payout").innerHTML = v>=500 ? `If your read lands you collect <b style="color:var(--glow)">${N(Math.round(v*100/Math.max(price,1)))}</b>` : ""; };
 window.confirmStake = async ()=>{
   const v = parseInt(document.getElementById("stake").value,10);
   if(!v||v<500) return toast("Minimum call is \u20A6500");
@@ -1826,46 +1570,17 @@ window.openUserDetail = async (username)=>{
   if(r.error) return toast(r.error);
   S.admin.userDetail = r; render();
 };
-window.adminAssignRole = async (username, role)=>{
-  if(!role) return;
-  const labels = { user:"a regular user", analyst:"an Analyst (read-only data extracts)", auditor:"an Auditor (read-only audit log, ledger and exports)", admin:"an Admin (full marketplace control)" };
-  if(!confirm("Make "+username+" "+(labels[role]||role)+"?")) return;
-  const r = await rpc("admin_assign_role", { p_username: username, p_role: role });
+window.adminRole = async (username, makeAdmin)=>{
+  if(!confirm((makeAdmin?"Make ":"Remove ")+username+(makeAdmin?" an admin?":" as admin?"))) return;
+  const r = await rpc("admin_set_role", { p_username: username, p_is_admin: makeAdmin });
   if(r.error) return toast(r.error);
   await loadAdmin();
   const fresh = await rpc("admin_user_detail", { p_username: username });
   S.admin.userDetail = fresh && !fresh.error ? fresh : null;
-  render(); toast("Role set to "+role+". Logged to the audit trail");
-};
-function toCsv(rows){
-  if(!rows || !rows.length) return "";
-  const cols = Object.keys(rows[0]);
-  const cell = v=>{
-    if(v===null || v===undefined) return "";
-    let s = typeof v==="object" ? JSON.stringify(v) : String(v);
-    return /[",\n\r]/.test(s) ? '"'+s.replace(/"/g,'""')+'"' : s;
-  };
-  return cols.join(",")+"\r\n"+rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\r\n");
-}
-window.runExport = async (dataset)=>{
-  const fn = { audit_log:"export_audit_log", wallet_ledger:"export_wallet_ledger", markets:"export_markets", calls:"export_calls" }[dataset];
-  if(!fn) return;
-  const from = S.admin.expFrom || null, to = S.admin.expTo || null;
-  toast("Preparing your export\u2026");
-  const r = await rpc(fn, { p_from: from, p_to: to });
-  if(r.error) return toast(r.error);
-  const rows = Array.isArray(r.data) ? r.data : [];
-  if(!rows.length) return toast("No rows in that range");
-  const csv = "\uFEFF" + toCsv(rows);
-  const stamp = new Date().toISOString().slice(0,10).replace(/-/g,"");
-  const a = document.createElement("a");
-  a.href = URL.createObjectURL(new Blob([csv], { type:"text/csv;charset=utf-8" }));
-  a.download = "wanana_"+dataset+"_"+stamp+".csv";
-  document.body.appendChild(a); a.click(); a.remove();
-  toast(r.rows+" rows exported. Logged to the audit trail");
+  render(); toast((makeAdmin?"Granted admin. ":"Removed admin. ")+"Logged to the audit trail");
 };
 window.adminAdjust = async (username)=>{
-  const raw = prompt("Balance adjustment for "+username+" in demo credits (use a negative number to deduct):");
+  const raw = prompt("Wallet adjustment for "+username+" in demo credits (use a negative number to deduct):");
   if(raw===null) return;
   const amt = parseInt(raw,10);
   if(!amt || isNaN(amt)) return toast("Enter a whole number, e.g. 5000 or -2000");
@@ -1877,7 +1592,7 @@ window.adminAdjust = async (username)=>{
   await loadAdmin();
   const fresh = await rpc("admin_user_detail", { p_username: username });
   S.admin.userDetail = fresh && !fresh.error ? fresh : null;
-  render(); toast("Balance adjusted. Logged to the audit trail");
+  render(); toast("Wallet adjusted. Logged to the audit trail");
 };
 window.adminKyc = async (u, status)=>{
   const r = await rpc("admin_kyc_set", { p_username: u, p_status: status });
