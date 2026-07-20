@@ -13,7 +13,11 @@
 <meta property="og:description" content="Africa argues about everything. Wanana pays whoever is right." />
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Libre+Franklin:wght@400;500;600;700;800&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<script>
+/* Apply the saved theme before first paint. Daylight is the default. */
+(function(){ try{ if(localStorage.getItem("wanana-theme")==="dark") document.documentElement.setAttribute("data-theme","dark"); }catch(e){} })();
+</script>
 <script>
 /* Load the Supabase library from our own domain first (immune to CDN
    blockers), with CDN backups, and a helpful message if everything fails. */
@@ -39,18 +43,39 @@
 </script>
 <style>
 :root{
+  --indigo:#FFFFFF;
+  --card:#FFFFFF;
+  --line:#D8DBE6;
+  --panel:#F4F5F8;
+  --orange:#FF7A1A;
+  --glow:#7A5A07;
+  --teal:#0E7A48;
+  --tealE:#0A5C36;
+  --coral:#B32A35;
+  --coralE:#842028;
+  --text:#0B0E31;
+  --slate:#4E5678;
+  --disp:'Libre Franklin',Arial,sans-serif;
+  --body:'Libre Franklin',Arial,sans-serif;
+  --mono:'IBM Plex Mono',ui-monospace,Consolas,monospace;
+  color-scheme:only light;
+}
+html[data-theme="dark"]{
   --indigo:#0B0E31;
   --card:#141A47;
-  --line:#232B63;
-  --orange:#FF7A1A;
-  --glow:#FF9A4D;
-  --teal:#2DD4BF;
-  --coral:#FB7185;
+  --line:#2A3370;
+  --panel:#10153C;
+  --glow:#FFD470;
+  --teal:#0E8049;
+  --tealE:#0A6238;
+  --coral:#C43844;
+  --coralE:#932832;
   --text:#F4F6FF;
-  --slate:#8E95BE;
-  --disp:'Space Grotesk',sans-serif;
-  --body:'Inter',system-ui,sans-serif;
+  --slate:#A9B1D6;
+  color-scheme:only dark;
 }
+html[data-theme="dark"] .live,html[data-theme="dark"] .verified,html[data-theme="dark"] .followbtn.on{color:#4ADE93}
+html[data-theme="dark"] .live .dot{background:#4ADE93}
 *{box-sizing:border-box;margin:0;padding:0}
 html{background:var(--indigo)}
 body{width:100%;background:var(--indigo);color:var(--text);font-family:var(--body);-webkit-font-smoothing:antialiased;line-height:1.3}
@@ -265,6 +290,90 @@ main#main{position:relative;z-index:1;animation:pagein .24s ease}
 .sf-socials{display:flex;gap:18px;align-items:center}
 .soc{color:var(--slate);display:inline-flex;transition:color .15s ease,transform .15s ease}
 .soc:hover{color:var(--orange);transform:translateY(-1px)}
+
+/* ===================== DAYLIGHT / FLOODLIGHT PATCH LAYER ===================== */
+/* Fixed brand zones: identical in both themes */
+header.bar{background:#0B0E31;border-bottom:3px solid #FF7A1A}
+.balance{background:#141A47;border:1px solid #2A3370;color:#FFFFFF;font-family:var(--mono)}
+.balance .naira{color:#FFC53D}
+.topnav button{color:#A9B1D6}
+.topnav button.on{color:#0B0E31;background:#FF7A1A}
+.mode{width:34px;height:34px;border-radius:50%;border:1px solid #2A3370;background:#141A47;color:#FFC53D;font-size:15px;display:inline-flex;align-items:center;justify-content:center;flex-shrink:0}
+nav.bottom{background:#0B0E31;border-top:3px solid #FF7A1A}
+nav.bottom button{color:#A9B1D6}
+nav.bottom button.on{color:#FFFFFF}
+nav.bottom button.on::before{background:#FFC53D}
+.hero{background:#0B0E31;color:#F4F6FF}
+.hero .skill-line{color:#A9B1D6}
+.hero h1{color:#FFFFFF}
+.hero p.lead{color:#C3C9E4}
+.site-footer{background:#0B0E31;border-top:none;margin:26px -16px 0;padding:20px 16px calc(30px + env(safe-area-inset-bottom));border-radius:0}
+.hero .site-footer{margin:26px -26px 0}
+.sf-left,.sf-left a{color:#A9B1D6}
+.soc{color:#A9B1D6}
+.soc:hover{color:#FFFFFF}
+/* Ticker */
+.ticker{overflow:hidden;background:#0B0E31;border-bottom:1px solid #232B63}
+.ticker-in{display:flex;gap:34px;white-space:nowrap;padding:7px 0;font-family:var(--mono);font-size:11px;animation:wtick 28s linear infinite;width:max-content}
+@keyframes wtick{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.ticker .tk{color:#A9B1D6}
+.ticker .tk b{color:#FFFFFF;font-weight:600}
+.ticker .tk .up{color:#4ADE93}.ticker .tk .gld{color:#FFD470}
+@media (prefers-reduced-motion:reduce){.ticker-in{animation:none}}
+/* Reading surface restyle */
+.card{border-radius:4px;border-top:3px solid var(--text)}
+input,select,textarea{border-radius:4px}
+input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:var(--orange);box-shadow:none}
+.q{font-weight:800;letter-spacing:-.01em}
+.tabtitle{font-family:'Archivo Black',Impact,sans-serif;font-weight:400;text-transform:uppercase;letter-spacing:.01em}
+.hero h1{font-family:'Archivo Black',Impact,sans-serif;font-weight:400;text-transform:uppercase;font-size:27px;line-height:1.1}
+.stat .v,.otp,.win-amt{font-family:var(--mono)}
+.stat,.aicard,.pinbox,.authbox,.win-card{border-radius:4px}
+.sheet{border-radius:6px 6px 0 0}
+.byline{font-size:11.5px;color:var(--slate);margin:-6px 0 10px}
+.byline b{color:var(--glow);font-weight:700}
+/* Gauge */
+.bar{height:10px;border-radius:2px}
+.bar .y{background:var(--teal);border-radius:2px 0 0 2px}
+.bar .n{background:var(--coral);border-radius:0 2px 2px 0}
+.bar .spark{width:3px;height:16px;border-radius:1px;background:var(--text);border:none;box-shadow:none;transform:translate(-50%,-50%) skewX(-12deg)}
+/* Solid decisive buttons */
+.btn-yes{background:var(--teal);color:#FFFFFF;border-radius:4px;box-shadow:0 3px 0 var(--tealE);font-weight:800;letter-spacing:.04em}
+.btn-no{background:var(--coral);color:#FFFFFF;border-radius:4px;box-shadow:0 3px 0 var(--coralE);font-weight:800;letter-spacing:.04em}
+.cta{background:#FF7A1A;color:#0B0E31;border-radius:4px;box-shadow:0 3px 0 #C55A0A;font-weight:800;letter-spacing:.04em;text-transform:uppercase}
+.chip{border-radius:999px}
+.chip.on{color:#0B0E31}
+.borc{background:#FFC53D;color:#0B0E31}
+.bm.u .bub{color:#0B0E31}
+.toast{color:#0B0E31}
+.live{text-transform:uppercase;font-weight:800}
+.live .dot{box-shadow:none;animation:wpulse 1.6s ease infinite}
+@keyframes wpulse{0%,100%{opacity:1}50%{opacity:.35}}
+.empty{border-radius:4px}
+.shell::before{content:none}
+/* Neutralise the old glow hovers */
+@media (hover:hover){
+  .cta:hover:not(:disabled){transform:translateY(-1px);background:#FF8C3A;box-shadow:0 3px 0 #C55A0A;filter:none}
+  .btn-yes:hover{transform:translateY(-1px);background:var(--teal);box-shadow:0 3px 0 var(--tealE);filter:brightness(1.07)}
+  .btn-no:hover{transform:translateY(-1px);background:var(--coral);box-shadow:0 3px 0 var(--coralE);filter:brightness(1.07)}
+  .card[role="button"]:hover{transform:translateY(-2px);border-color:var(--orange);box-shadow:0 6px 18px rgba(11,14,49,.10)}
+  .topnav button:hover{color:#FFFFFF;background:#141A47}
+  .topnav button.on:hover{color:#0B0E31;background:#FF8C3A}
+  .stat:hover{border-color:var(--orange)}
+  .chip.on:hover{color:#0B0E31}
+  .cmt-acts button:hover{color:var(--orange)}
+  .alink:hover{color:var(--text)}
+}
+/* Receipt win card */
+.win-card{border:1.5px dashed #A8AFC6;border-top:1.5px dashed #A8AFC6;background:var(--card);font-family:var(--mono)}
+html[data-theme="dark"] .win-card{border-color:#3A4487}
+.win-card .rc-stamp{display:inline-block;transform:rotate(-8deg);font-family:var(--body);font-weight:800;font-size:10.5px;letter-spacing:.14em;padding:5px 10px;border:2px solid var(--teal);border-radius:3px;color:var(--teal);margin:8px 0 4px}
+html[data-theme="dark"] .win-card .rc-stamp{color:#4ADE93;border-color:#4ADE93}
+.win-amt{color:var(--teal);font-weight:600}
+html[data-theme="dark"] .win-amt{color:#4ADE93}
+      <button class="win-share" onclick="shareReceipt()">Share the receipt</button>
+/* Money text in both themes */
+html[data-theme="dark"] .coin{color:#FFD470}
 </style>
 </head>
 <body>
@@ -521,7 +630,7 @@ function sparkNet(){
 /* One footer, every page: company attribution, policies, socials. */
 function siteFooter(){
   return `<div class="site-footer">
-    <div class="sf-left">\u00A9 2026 Wanana \u00B7 Operated by Wanana Technologies Limited \u00B7 A game of skill \u00B7 18+ only \u00B7 <a href="/legal.html" style="color:var(--slate)">Legal &amp; safety</a></div>
+    <div class="sf-left">\u00A9 2026 Wanana \u00B7 Operated by Wanana Technologies Limited \u00B7 A game of skill \u00B7 18+ only \u00B7 <a href="/legal.html" style="color:#A9B1D6">Legal &amp; safety</a></div>
     <div class="sf-socials" aria-label="Wanana on social media">
       <a class="soc" href="https://www.instagram.com/wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on Instagram" title="Instagram"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.2c3.2 0 3.6 0 4.9.07 1.2.06 1.8.25 2.2.42.56.22.96.48 1.38.9.42.42.68.82.9 1.38.17.4.36 1 .42 2.2.06 1.3.07 1.7.07 4.9s0 3.6-.07 4.9c-.06 1.2-.25 1.8-.42 2.2-.22.56-.48.96-.9 1.38-.42.42-.82.68-1.38.9-.4.17-1 .36-2.2.42-1.3.06-1.7.07-4.9.07s-3.6 0-4.9-.07c-1.2-.06-1.8-.25-2.2-.42a3.7 3.7 0 0 1-1.38-.9 3.7 3.7 0 0 1-.9-1.38c-.17-.4-.36-1-.42-2.2C2.2 15.6 2.2 15.2 2.2 12s0-3.6.07-4.9c.06-1.2.25-1.8.42-2.2.22-.56.48-.96.9-1.38.42-.42.82-.68 1.38-.9.4-.17 1-.36 2.2-.42C8.4 2.2 8.8 2.2 12 2.2m0-2.2C8.7 0 8.3 0 7 .07 5.8.13 4.9.33 4.1.63c-.8.32-1.5.74-2.2 1.44A6 6 0 0 0 .63 4.26C.33 5.06.13 5.96.07 7.26 0 8.56 0 8.96 0 12.16s0 3.6.07 4.9c.06 1.3.26 2.2.56 3 .32.8.74 1.5 1.44 2.2.7.7 1.4 1.12 2.2 1.44.8.3 1.7.5 3 .56 1.3.07 1.7.07 4.9.07s3.6 0 4.9-.07c1.3-.06 2.2-.26 3-.56a6 6 0 0 0 2.2-1.44 6 6 0 0 0 1.44-2.2c.3-.8.5-1.7.56-3 .07-1.3.07-1.7.07-4.9s0-3.6-.07-4.9c-.06-1.3-.26-2.2-.56-3a6 6 0 0 0-1.44-2.2A6 6 0 0 0 19.96.63c-.8-.3-1.7-.5-3-.56C15.66 0 15.26 0 12.06 0h-.06Zm0 5.8a6.2 6.2 0 1 0 0 12.4 6.2 6.2 0 0 0 0-12.4Zm0 10.2a4 4 0 1 1 0-8 4 4 0 0 1 0 8Zm6.4-11.8a1.44 1.44 0 1 1-2.88 0 1.44 1.44 0 0 1 2.88 0Z"/></svg></a>
       <a class="soc" href="https://www.tiktok.com/@wananaafrica" target="_blank" rel="noopener" aria-label="Wanana on TikTok" title="TikTok"><svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19.6 6.7a5.6 5.6 0 0 1-3.4-1.1 5.6 5.6 0 0 1-2.2-3.4h-3.5v13.3a2.9 2.9 0 1 1-2.9-2.9c.3 0 .6 0 .9.1V9.2a6.4 6.4 0 0 0-.9-.06 6.4 6.4 0 1 0 6.4 6.4V8.9a9 9 0 0 0 5.6 1.9V7.3c-.66 0-1.3-.2-2-.6Z"/></svg></a>
@@ -532,11 +641,59 @@ function siteFooter(){
   </div>`;
 }
 
+/* Theme toggle: Daylight default, Floodlight on demand, choice remembered. */
+window.toggleTheme = function(){
+  const el = document.documentElement;
+  const dark = el.getAttribute("data-theme")!=="dark";
+  if(dark) el.setAttribute("data-theme","dark"); else el.removeAttribute("data-theme");
+  try{ localStorage.setItem("wanana-theme", dark?"dark":"light"); }catch(e){}
+  document.body.style.display="none"; void document.body.offsetHeight; document.body.style.display="";
+  render();
+};
+
+/* Ticker: the sports score bar meets the stock ticker. */
+function tickerHtml(){
+  const ms = (S.markets||[]).slice().sort((a,b)=>(b.yes_pool+b.no_pool)-(a.yes_pool+a.no_pool)).slice(0,4);
+  if(!ms.length) return "";
+  const item = m => `<span class="tk">LIVE \u00b7 <b>${esc(m.question.length>44?m.question.slice(0,44)+"\u2026":m.question)}</b> <span class="up">YES ${yesPct(m)}%</span> \u00b7 pool <span class="gld">\u20A6${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</span></span>`;
+  const row = ms.map(item).join("");
+  return `<div class="ticker" aria-hidden="true"><div class="ticker-in">${row}${row}</div></div>`;
+}
+
+/* Countdown label: shows time left when the date parses, else the date. */
+function closesLabel(m){
+  const d = new Date(m.ends_on);
+  if(!isNaN(d)){
+    const ms = d.getTime() + 86399000 - Date.now();
+    if(ms > 0){
+      const days = Math.floor(ms/86400000);
+      if(days >= 1) return `closes in ${days}d`;
+      const hrs = Math.max(1, Math.floor(ms/3600000));
+      return `closes in ${hrs}h`;
+    }
+  }
+  return `ends ${esc(m.ends_on)}`;
+}
+
+/* Share the receipt: proof beats promo. */
+window.shareReceipt = async function(){
+  const wins = S.wins||[]; if(!wins.length) return;
+  const total = wins.reduce((s,w)=>s+Number(w.amount),0);
+  const q = (wins[0] && wins[0].question) || "my market";
+  const text = `Clean call on Wanana \u2705 +\u20A6${Number(total).toLocaleString("en-NG")} \u00b7 "${q}" \u00b7 Called it before it happened \u00b7 wanana.africa`;
+  try{
+    if(navigator.share){ await navigator.share({ text }); return; }
+    await navigator.clipboard.writeText(text);
+    toast("Receipt copied. Paste it anywhere.");
+  }catch(e){}
+};
+
 function marketCard(m, interactive=true){
   const y = yesPct(m);
   return `<div class="card" ${interactive?`onclick="openDetail(${m.id})" role="button" tabindex="0"`:""}>
     <div class="meta"><span class="cat">${m.category}</span><span class="live"><span class="dot"></span>LIVE</span></div>
     <div class="q">${esc(m.question)}</div>
+    ${m.creator?`<div class="byline">Posted by <b>${esc(m.creator)}</b></div>`:""}
     <div class="bar"><div class="y" style="width:${y}%"></div><div class="n"></div><div class="spark" style="left:${y}%"></div></div>
     ${interactive?`<div class="row">
       <button class="btn-yes" onclick="event.stopPropagation();openTrade(${m.id},'YES')">YES ${y}%</button>
@@ -544,7 +701,7 @@ function marketCard(m, interactive=true){
     </div>`:`<div class="row">
       <span class="btn-yes">YES ${y}%</span><span class="btn-no">NO ${100-y}%</span>
     </div>`}
-    <div class="stats"><span><span class="coin">\u20A6</span> <b>${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</b> in the pool</span><span>\u{1F4AC} ${m.comment_count||0} \u00b7 ends ${esc(m.ends_on)}</span></div>
+    <div class="stats"><span><span class="coin">\u20A6</span> <b>${Number(m.yes_pool+m.no_pool).toLocaleString("en-NG")}</b> in the pool</span><span>\u{1F4AC} ${m.comment_count||0} \u00b7 ${closesLabel(m)}</span></div>
   </div>`;
 }
 
@@ -567,13 +724,15 @@ function render(){
       <button onclick="go('home')" aria-label="Wanana home" style="display:flex;align-items:center;padding:0">${WORDMARK}</button>
       <div class="topnav" role="navigation" aria-label="Main">${navButtons()}</div>
       <div style="display:flex;align-items:center;gap:10px">
+        <button class="mode" onclick="toggleTheme()" aria-label="Switch between light and dark mode">${document.documentElement.getAttribute("data-theme")==="dark"?"\u2600":"\u263E"}</button>
         <button class="balance" onclick="go('wallet')" aria-label="Your demo balance" style="display:flex;flex-direction:column;align-items:flex-end;gap:1px;line-height:1.1;cursor:pointer">
-          <span style="font-size:8.5px;font-weight:600;color:var(--slate);text-transform:uppercase;letter-spacing:.08em">Demo balance</span>
+          <span style="font-size:8.5px;font-weight:600;color:#A9B1D6;text-transform:uppercase;letter-spacing:.08em">Demo balance</span>
           <span><span class="naira">\u20A6</span>${Number(S.profile.balance).toLocaleString("en-NG")}</span>
         </button>
         <button onclick="go('profile')" aria-label="Your profile" style="padding:0;border-radius:50%">${avatarHtml(S.profile.avatarUrl, S.profile.username, 34)}</button>
       </div>
     </div></header>
+    ${tickerHtml()}
     <main id="main">${views[S.tab]()}</main>
     <div style="width:100%;max-width:1200px;margin:0 auto;padding:0 16px">${siteFooter()}</div>
     ${S.detail ? detailSheet() : ""}
@@ -685,7 +844,7 @@ function heroView(){
         <h1>Africa argues about everything. <span class="em">Wanana pays whoever is right.</span></h1>
         <p class="lead">Post a question, make your call, and get paid when you call it right. The crowd sets the price. Skill gets paid. Every result is verified.</p>
         ${authBox()}
-        <p class="note">Open beta on demo credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:var(--slate)">Terms · Privacy · Responsible Play</a> · <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button></p>
+        <p class="note">Open beta on demo credits. 18+ only. Play within your limit. No forex, stocks or crypto markets, ever. <a href="/legal.html" style="color:#A9B1D6">Terms · Privacy · Responsible Play</a> · <button class="alink" onclick="S.help=true;render()">Help &amp; FAQ</button></p>
       </div>
       ${previews ? `<div class="hero-preview" aria-hidden="true">
         <div class="preview-label">Live on wanana right now</div>
@@ -694,21 +853,21 @@ function heroView(){
     </div>
     <div style="max-width:960px;margin:0 auto;padding:0 26px">
       <div style="font-family:var(--disp);font-weight:700;font-size:22px;margin:26px 0 4px">How to play</div>
-      <p style="font-size:13.5px;color:var(--slate);margin:0 0 18px;line-height:1.6">Five steps. No house, no luck. Just your read against the crowd.</p>
+      <p style="font-size:13.5px;color:#A9B1D6;margin:0 0 18px;line-height:1.6">Five steps. No house, no luck. Just your read against the crowd.</p>
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px">
         ${[
           ["Create your account","Sign up with your email and claim your Oracle name. You start with \u20A650,000 demo credits. No card, no deposit."],
           ["Pick an argument","Browse the arenas: football, gist, jollof, tech, music. Every market is a real-world YES or NO question with a named public source."],
           ["Make your call","Back YES or NO with demo credits, \u20A6500 minimum. The crowd price shows where everyone leans. Your edge is reading it better."],
           ["The outcome gets verified","When the event concludes, the result is checked against the market's public source, then a 48-hour dispute window opens before anything pays out."],
-          ["Winners share the pool","Call it right and take your share of the settled pool, split by stake. Wanana takes 5%, the market creator earns 1%, and the house never plays against you."],
-        ].map((s,i)=>`<div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px">
-          <div style="width:30px;height:30px;border-radius:50%;background:var(--orange);color:var(--indigo);font-family:var(--disp);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;margin-bottom:10px">${i+1}</div>
+          ["Winners share the pool","Call it right and take your share of the settled pool, split by stake. Creators earn from every naira staked in their market, and the house never plays against you."],
+        ].map((s,i)=>`<div style="background:#141A47;border:1px solid #2A3370;border-radius:8px;padding:16px">
+          <div style="width:30px;height:30px;border-radius:50%;background:var(--orange);color:#0B0E31;font-family:var(--disp);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;margin-bottom:10px">${i+1}</div>
           <div style="font-family:var(--disp);font-weight:600;font-size:14.5px;margin-bottom:6px">${s[0]}</div>
-          <div style="font-size:12.5px;color:var(--slate);line-height:1.65">${s[1]}</div>
+          <div style="font-size:12.5px;color:#A9B1D6;line-height:1.65">${s[1]}</div>
         </div>`).join("")}
       </div>
-      <p style="font-size:12.5px;color:var(--slate);line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path from Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend, with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
+      <p style="font-size:12.5px;color:#A9B1D6;line-height:1.65;margin:16px 0 30px">Keep calling it right and climb the path from Rookie to Sharp Eye to Trend Spotter to Oracle to Wanana Legend, with streaks, badges and a fresh Top Callers race every week. Wanana is a game of skill for ages 18 and over. Demo credits only during open beta; nothing here is real money.</p>
       ${siteFooter()}
     </div>
     </div>
@@ -742,7 +901,7 @@ function profileSetupView(){
           <div class="field"><label>Referral code (optional)</label>
             <input id="p_ref" maxlength="6" placeholder="e.g. 3EA0AE" value="${esc(S.refPrefill)}" style="text-transform:uppercase" /></div>
           <button class="cta" ${S.busy?"disabled":""} onclick="doProfileSetup()">Make your first call</button>
-          <p class="note" style="margin-top:10px">By continuing you agree to Wanana's <a href="/legal.html" style="color:var(--slate)">Terms, Privacy and Responsible Play</a> and confirm you are 18 or older.</p>
+          <p class="note" style="margin-top:10px">By continuing you agree to Wanana's <a href="/legal.html" style="color:#A9B1D6">Terms, Privacy and Responsible Play</a> and confirm you are 18 or older.</p>
           <div class="alinks"><button class="alink" onclick="doSignOut()">Sign out</button></div>
         </div>
       </div>
@@ -832,7 +991,7 @@ const views = {
     const cats = ["Entertainment","Culture","Sports","Food","Public events","Creator trends","Music awards","Tech","Lifestyle","African social conversations","Politics"];
     return `<div class="pad narrow">
       <h2 class="tabtitle">${e ? "Edit your market" : "Create a market"}</h2>
-      <p class="sub">${e ? "Your market goes back through review after you save changes." : "Post any real world yes or no scenario. Our team reviews every market before it goes live. Creators earn 1% of the settled pool."}</p>
+      <p class="sub">${e ? "Your market goes back through review after you save changes." : "Post any real world yes or no scenario. Our team reviews every market before it goes live. You earn from every naira staked in your pool, and you can back your own call like everyone else."}</p>
       <div class="field"><label>Your question</label><input id="cq" maxlength="200" placeholder="Will Davido headline the O2 Arena in 2026?" value="${e?esc(e.question):""}" /></div>
       <div class="field"><label>Category</label><select id="cc">${cats.map(c=>`<option ${e&&e.category===c?"selected":""}>${c}</option>`).join("")}</select></div>
       <div class="field"><label>Resolution date</label><input id="ce" type="date" min="${todayISO()}" value="${e?dateISO(e.ends_on):""}" /></div>
@@ -941,7 +1100,7 @@ const views = {
       </div>` : ""}
       <div style="background:var(--card);border:1px solid var(--line);border-radius:8px;padding:16px;margin-bottom:14px">
         <div style="font-family:var(--disp);font-weight:600;font-size:14px;margin-bottom:6px">Your markets</div>
-        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${S.myMarkets.length?"12px":"0"}">Every market you created, and where it is in the pipeline. Creators earn 1% of the settled pool.</div>
+        <div style="font-size:12.5px;color:var(--slate);line-height:1.6;margin-bottom:${S.myMarkets.length?"12px":"0"}">Every market you created, and where it is in the pipeline. You earn from every naira staked in your pool when it settles.</div>
         ${S.myMarkets.length===0 ? `<div style="font-size:12.5px;color:var(--slate)">Nothing yet. <button class="alink" onclick="go('create')">Create your first market</button></div>` :
           S.myMarkets.map(m=>{
             const scol = {pending_review:"var(--orange)",approved:"var(--glow)",live:"var(--teal)",closed:"var(--slate)",in_verification:"var(--glow)",dispute_window:"var(--coral)",settled:"var(--teal)",rejected:"var(--coral)",cancelled:"var(--slate)",draft:"var(--slate)"}[m.status]||"var(--slate)";
@@ -1223,19 +1382,19 @@ function victorySheet(){
   const total = wins.reduce((s,w)=>s+Number(w.amount),0);
   const lastId = Math.max(...wins.map(w=>Number(w.ledger_id)));
   const onlyCreator = wins.every(w=>w.kind==="creator");
-  const bits = ["\u{1F389}","\u{2728}","\u{1F3C6}","\u{1F525}","\u{2B50}","\u{1F389}","\u{2728}","\u{1F3C6}"];
-  const conf = bits.map((b,i)=>`<span class="confetti" style="left:${8+i*12}%;animation-delay:${(i*0.28).toFixed(2)}s">${b}</span>`).join("");
   return `<div class="win-bg" onclick="winsSeen(${lastId})">
     <div class="win-card" onclick="event.stopPropagation()">
-      ${conf}
-      <div style="font-family:var(--disp);font-weight:700;font-size:22px">${onlyCreator ? "Your market paid out" : "You called it"} \u{1F389}</div>
-      <div class="win-amt">+\u20A6${total.toLocaleString("en-NG")}</div>
-      <div style="font-size:12px;color:var(--slate);margin-bottom:14px">${wins.length>1 ? wins.length+" settlements landed in your balance" : "landed in your balance"}</div>
-      ${wins.map(w=>`<div style="text-align:left;font-size:12.5px;padding:8px 0;border-top:1px solid var(--line)">
-        <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator reward":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
+      <div style="font-family:var(--body);font-weight:800;font-size:20px;text-transform:uppercase;letter-spacing:.02em">${onlyCreator ? "Your market paid you" : "Clean call!"}</div>
+      <div class="win-amt" style="font-size:36px;margin:6px 0 2px">+\u20A6${total.toLocaleString("en-NG")}</div>
+      <div style="font-size:11.5px;color:var(--slate);margin-bottom:10px">${wins.length>1 ? wins.length+" settlements landed in your balance" : "landed in your balance"}</div>
+      ${wins.map(w=>`<div style="text-align:left;font-size:12px;padding:8px 0;border-top:1.5px dashed var(--line)">
+        <span style="color:${w.kind==="creator"?"var(--glow)":"var(--teal)"};font-weight:700">${w.kind==="creator"?"Creator earnings":"Nice read"} +\u20A6${Number(w.amount).toLocaleString("en-NG")}</span>
         <span style="color:var(--slate)"> \u00b7 ${esc(w.question||"")}${w.outcome ? " \u00b7 verified " + w.outcome : ""}</span>
       </div>`).join("")}
-      <button class="cta" style="margin-top:16px" onclick="winsSeen(${lastId})">Collect am</button>
+      <div class="rc-stamp">VERIFIED OUTCOME</div>
+      <div style="font-size:10px;color:var(--slate);letter-spacing:.05em;margin-bottom:4px">Called it before it happened \u00b7 wanana.africa</div>
+      <button class="win-share" onclick="shareReceipt()">Share the receipt</button>
+      <button class="cta" style="margin-top:12px" onclick="winsSeen(${lastId})">Collect am</button>
       <p class="note" style="margin-bottom:0">Every settlement is verified against a public source, with a 48 hour dispute window first.</p>
     </div></div>`;
 }
