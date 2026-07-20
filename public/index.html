@@ -291,8 +291,9 @@ main#main{position:relative;z-index:1;animation:pagein .24s ease}
 
 /* ===================== DAYLIGHT / FLOODLIGHT PATCH LAYER ===================== */
 /* Fixed brand zones: identical in both themes */
-header.bar{background:#0B0E31;border-bottom:3px solid #FF7A1A}
-header.bar .bar-in{min-height:62px;padding:10px 16px;gap:14px}
+header.bar{display:block;height:auto;min-height:0;border-radius:0;margin:0;position:sticky;top:0;z-index:30;background:#0B0E31;border-bottom:3px solid #FF7A1A;backdrop-filter:none}
+header.bar .bar-in{min-height:62px;padding:10px 16px;gap:14px;height:auto}
+.topnav button{white-space:nowrap}
 img.logo{height:26px}
 .ticker{border-bottom:none;border-top:1px solid #1B2254}
 .balance{background:#141A47;border:1px solid #2A3370;color:#FFFFFF;font-family:var(--mono)}
