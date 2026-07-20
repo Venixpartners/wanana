@@ -25,7 +25,12 @@
   function boot(){ if(window.supabase && window.__wananaBoot) window.__wananaBoot(); }
   function fail(){
     var el = document.getElementById("app");
-    if(el) el.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;color:#8E95BE;font-family:system-ui;line-height:1.7">Wanana could not load a required component.<br/>A browser extension or privacy shield may be blocking it.<br/>Allow this site in your blocker, or try another browser.</div>';
+    if(el){
+      var offline = (typeof navigator!=="undefined" && navigator.onLine===false);
+      el.innerHTML = '<div style="min-height:100vh;display:flex;align-items:center;justify-content:center;padding:28px;text-align:center;color:#A9B1D6;font-family:system-ui;line-height:1.7;background:#0B0E31">' + (offline
+        ? 'You look offline.<br/>Reconnect to the internet, then reload this page.'
+        : 'Wanana could not load a required component.<br/>A browser extension or privacy shield may be blocking it.<br/>Allow this site in your blocker, or try another browser.<br/><br/><a href="mailto:support@wanana.africa" style="color:#FFA65C">support@wanana.africa</a>') + '</div>';
+    }
   }
   function load(src, onerr){
     var s = document.createElement("script");
@@ -332,7 +337,7 @@ nav.bottom button.on::before{background:#FFC53D}
 .ticker .tk .up{color:#4ADE93}.ticker .tk .gld{color:#FFD470}
 @media (prefers-reduced-motion:reduce){.ticker-in{animation:none}}
 /* Reading surface restyle */
-.card{border-radius:4px;border-top:3px solid var(--text)}
+.card{border-radius:4px;border-top:3px solid var(--text);color:var(--text)}
 input,select,textarea{border-radius:4px}
 input:focus-visible,select:focus-visible,textarea:focus-visible{outline:none;border-color:var(--orange);box-shadow:none}
 .q{font-weight:800;letter-spacing:-.01em}
@@ -388,10 +393,21 @@ html[data-theme="dark"] .coin{color:#FFD470}
 </style>
 </head>
 <body>
-<div id="app"><div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:#8E95BE;font-family:system-ui">
-  <div style="font-size:26px;font-weight:700;letter-spacing:.5px;color:#F4F6FF">wanana</div>
-  <div style="width:26px;height:26px;border:3px solid #232B63;border-top-color:#FF7A1A;border-radius:50%;animation:wnspin 0.9s linear infinite"></div>
-  <div style="font-size:13px">Loading&hellip; if this takes long, refresh the page.</div>
+<div id="app"><div style="min-height:100vh;background:#0B0E31;color:#F4F6FF;font-family:'Libre Franklin',Arial,sans-serif">
+  <div style="max-width:760px;margin:0 auto;padding:48px 22px">
+    <div style="font-size:30px;font-weight:800;letter-spacing:-.02em">wan<span style="color:#FF7A1A">a</span>na</div>
+    <div style="display:flex;gap:12px;align-items:center;margin:22px 0 10px">
+      <div style="width:22px;height:22px;border:3px solid #232B63;border-top-color:#FF7A1A;border-radius:50%;animation:wnspin 0.9s linear infinite"></div>
+      <div style="font-size:13px;color:#A9B1D6">Opening the markets&hellip;</div>
+    </div>
+    <h1 style="font-size:24px;font-weight:800;line-height:1.25;margin:18px 0 10px">Africa argues about everything. Wanana pays whoever is right.</h1>
+    <p style="color:#C3C9E4;line-height:1.7;margin:0 0 14px">Wanana is a peer prediction marketplace and game of skill. Someone posts a real-world yes-or-no question with a named public source. The crowd backs YES or NO and sets the price. When the outcome is verified, whoever called it right shares the pool. Wanana is the referee, never the house.</p>
+    <p style="color:#C3C9E4;line-height:1.7;margin:0 0 14px">Open beta on demo credits: every balance is demo only, with no cash value, while licensing, identity checks and payment review are completed. 18 and over only. No forex, stocks or crypto markets, ever.</p>
+    <p style="color:#A9B1D6;font-size:13px;line-height:1.7;margin:0 0 6px">Football, gist, music, tech and everyday Naija debates · Verified outcomes with a 48 hour dispute window · Winners share the settled pool.</p>
+    <p style="font-size:13px;margin-top:18px"><a href="/legal.html" style="color:#FFA65C">Terms, Privacy and Responsible Play</a> · <a href="mailto:support@wanana.africa" style="color:#FFA65C">support@wanana.africa</a></p>
+    <p style="font-size:12px;color:#A9B1D6;margin-top:16px">© 2026 Wanana · Operated by Wanana Technologies Limited · Lagos, Nigeria · A game of skill, not a bookmaker · 18+ only</p>
+    <noscript><p style="color:#FFC53D;font-size:13px;margin-top:14px">Wanana needs JavaScript to run the live markets. Enable JavaScript in your browser, then reload this page.</p></noscript>
+  </div>
   <style>@keyframes wnspin{to{transform:rotate(360deg)}}</style>
 </div></div>
 
@@ -711,6 +727,9 @@ window.shareReceipt = async function(){
     toast("Receipt copied. Paste it anywhere.");
   }catch(e){}
 };
+
+/* Defence: if any data field arrives with literal unicode escapes, decode for display. */
+function deEsc(s){ return String(s==null?"":s).replace(/\\u\{?([0-9a-fA-F]{4,6})\}?/g, (_,c)=>{ try{ return String.fromCodePoint(parseInt(c,16)); }catch(e){ return _; } }); }
 
 function marketCard(m, interactive=true){
   const y = yesPct(m);
@@ -1113,7 +1132,7 @@ const views = {
             const on = !!b.earned;
             const prog = !on && b.target ? `<div style="height:4px;border-radius:2px;background:var(--line);margin-top:6px"><div style="height:4px;border-radius:2px;background:var(--glow);width:${Math.round((b.progress||0)*100/b.target)}%"></div></div><div style="font-size:10.5px;color:var(--slate);margin-top:3px">${b.progress||0} of ${b.target}</div>` : "";
             return `<div title="${esc(on?b.blurb:b.hint)}" style="border:1px solid ${on?"var(--orange)":"var(--line)"};border-radius:8px;padding:10px;${on?"":"opacity:.55"}">
-              <div style="font-size:20px">${on?b.icon:"\uD83D\uDD12"}</div>
+              <div style="font-size:20px">${on?deEsc(b.icon):"\uD83D\uDD12"}</div>
               <div style="font-family:var(--disp);font-weight:600;font-size:12.5px;margin-top:4px;color:${on?"var(--text)":"var(--slate)"}">${esc(b.name)}</div>
               <div style="font-size:10.5px;color:var(--slate);line-height:1.45;margin-top:3px">${esc(on?b.blurb:b.hint)}</div>
               ${prog}
