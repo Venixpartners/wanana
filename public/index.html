@@ -454,7 +454,7 @@ const S = {
   detail: null, trade: null, comments: [], disc: null, discSort: "top", replyTo: null,
   chat: [], helpTab: "ask",
   ledger: [], dispute: null, board: [], pay: null, refPrefill: "", recovery: false, overview: null, help: false, wins: [],
-  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null },
+  admin: { markets: [], disputes: [], ledger: [], users: [], comments: [], audit: [], cancelReqs: [], panel: "markets", fS: "all", fC: "all", fCm: "all", q: "", fA: "all", userDetail: null, search: { q: "", page: 0, total: 0, rows: null, busy: false }, exp: { from: "", to: "", busy: "" } },
   myMarkets: [], editMarket: null, badges: [], weekBoard: null, boardMode: "week",
 };
 const CATS = ["All","Politics","Sports","Entertainment","Music awards","Tech","Culture","Food","Lifestyle"];
@@ -528,7 +528,7 @@ async function loadProfile(){
   if(!S.session){ S.profile = null; return; }
   let me = await rpc("me");
   if(me && me.error){ await new Promise(r=>setTimeout(r, 700)); me = await rpc("me"); }
-  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
+  S.profile = (me && me.username) ? { username: me.username, balance: me.balance, isAdmin: !!me.is_admin, role: me.role || (me.is_admin ? "admin" : "user"), referralCode: me.referral_code, kycStatus: me.kyc_status || "not_started", avatarUrl: me.avatar_url || null } : null;
 }
 async function loadLedger(){
   if(!S.session) return;
@@ -536,7 +536,11 @@ async function loadLedger(){
   S.ledger = Array.isArray(r) ? r : [];
 }
 async function loadAdmin(){
-  if(!S.profile || !S.profile.isAdmin) return;
+  if(!S.profile || S.profile.role === "user") return;
+  if(S.profile.role !== "admin"){
+    if(!["search","exports"].includes(S.admin.panel)) S.admin.panel = "search";
+    return;
+  }
   const [m, d, l, u, c, a, rc, cr, hh] = await Promise.all([
     rpc("admin_markets"), rpc("admin_disputes"), rpc("admin_ledger_recent"),
     rpc("admin_users_recent"), rpc("admin_comments_recent"), rpc("admin_audit_recent"),
@@ -769,7 +773,9 @@ function marketCard(m, interactive=true){
 
 const NAV_ITEMS = [["home","Markets"],["insights","Insights"],["create","Create"],["calls","Your calls"],["wallet","Balance"]];
 function navItems(){
-  return S.profile && S.profile.isAdmin ? NAV_ITEMS.concat([["admin","Admin"]]) : NAV_ITEMS;
+  const rr = S.profile && S.profile.role;
+  if(!rr || rr === "user") return NAV_ITEMS;
+  return NAV_ITEMS.concat([["admin", rr === "admin" ? "Admin" : "Data"]]);
 }
 function navButtons(){
   return navItems().map(([k,l])=>`<button class="${S.tab===k?"on":""}" onclick="go('${k}')">${l}</button>`).join("");
@@ -1219,6 +1225,8 @@ const views = {
   },
   admin(){
     const A = S.admin;
+    const myRole = (S.profile && S.profile.role) || "user";
+    if(myRole !== "admin" && !["search","exports"].includes(A.panel)) A.panel = "search";
     const seg = (k,l)=>`<button class="chip ${A.panel===k?"on":""}" onclick="S.admin.panel='${k}';renderMain()">${l}</button>`;
     const badge = s=>({pending_review:"var(--orange)",live:"var(--teal)",closed:"var(--slate)",
       in_verification:"var(--glow)",dispute_window:"var(--coral)"}[s]||"var(--slate)");
@@ -1255,7 +1263,7 @@ const views = {
     return `<div class="pad">
       <h2 class="tabtitle">Admin</h2>
       <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
-      <div class="chips" style="padding-left:0">${seg("markets","Markets")}${seg("disputes",`Disputes (${A.disputes.length})`)}${seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)}${seg("ledger","Ledger")}${seg("users","Users")}${seg("comments","Comments")}${seg("audit","Audit log")}${seg("health","Health")}</div>
+      <div class="chips" style="padding-left:0">${myRole==="admin" ? seg("markets","Markets")+seg("disputes",`Disputes (${A.disputes.length})`)+seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)+seg("ledger","Ledger")+seg("users","Users")+seg("comments","Comments")+seg("audit","Audit log")+seg("health","Health") : ""}${seg("search","\u{1F50D} Find a user")}${seg("exports","\u2B07\uFE0F Exports")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
           ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
@@ -1284,6 +1292,38 @@ const views = {
           <span><b style="color:var(--glow)">${esc(l.username)}</b> ${l.transaction_type.replace(/_/g," ")} <span style="color:var(--slate)">${esc(l.notes||"")}</span></span>
           <span><b style="color:${l.amount>0?"var(--teal)":"var(--coral)"}">${l.amount>0?"+":""}${N(l.amount)}</b> <span style="color:var(--slate)">by ${esc(l.created_by)}</span></span>
         </div>`).join("") || "No entries yet."}</div>` : ""}
+      ${A.panel==="search" ? `
+        <div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">Search every signup by username or email, including people who started signing up but never finished a profile. The search runs in the database with its own index, so it stays fast at a million users.</div>
+        <input placeholder="Type a username or email (at least 2 characters)" value="${esc(A.search.q)}" oninput="userSearchType(this.value)" style="margin-bottom:10px" />
+        ${A.search.busy ? `<div class="empty">Searching\u2026</div>` : A.search.rows === null ? "" : A.search.rows.length === 0 ? `<div class="empty">No one matches. Check the spelling, or try the exact email.</div>` : `
+        <div style="font-size:12px;color:var(--slate);margin-bottom:8px">${A.search.total} match${A.search.total===1?"":"es"}${A.search.total>25?` \u00b7 page ${A.search.page+1} of ${Math.ceil(A.search.total/25)}`:""}</div>
+        <div class="card">${A.search.rows.map(u=>`
+          <div ${u.profile_missing?"":`onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0"`} style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;${u.profile_missing?"":"cursor:pointer"}">
+            <span style="display:flex;flex-direction:column;gap:2px">
+              <span><b style="color:${u.profile_missing?"var(--coral)":"var(--glow)"}">${esc(u.username)}</b>${u.role && u.role!=="user" ? ` <span class="cat" style="color:var(--orange)">${esc(u.role.toUpperCase())}</span>`:""}${u.profile_missing ? ` <span class="cat" style="color:var(--coral)">SIGNUP NOT FINISHED</span>`:""}${u.email_confirmed===false ? ` <span class="cat" style="color:var(--slate)">EMAIL UNCONFIRMED</span>`:""}</span>
+              ${u.email ? `<span style="color:var(--slate)">${esc(u.email)}</span>`:""}
+              <span style="color:var(--slate)">Joined ${new Date(u.signed_up).toLocaleDateString("en-GB",{day:"numeric",month:"short",year:"numeric"})}${u.last_sign_in?` \u00b7 last seen ${new Date(u.last_sign_in).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}`:""}</span>
+            </span>
+            ${u.balance!=null?`<b>${N(u.balance)}${u.profile_missing?"":" \u203A"}</b>`:""}
+          </div>`).join("")}</div>
+        ${A.search.total>25?`<div class="row" style="margin-top:10px"><button class="chip" ${A.search.page===0?"disabled":""} onclick="userSearchPage(-1)">\u2039 Previous</button><button class="chip" ${(A.search.page+1)*25>=A.search.total?"disabled":""} onclick="userSearchPage(1)">Next \u203A</button></div>`:""}`}` : ""}
+      ${A.panel==="exports" ? (()=>{
+        const can = k=>({users:["admin","auditor","accounting"],ledger:["admin","auditor","accounting"],audit:["admin","auditor"],markets:["admin","auditor","analyst","accounting"],calls:["admin","auditor","analyst","accounting"]}[k]||[]).includes(myRole);
+        const row = (k,label,blurb)=>can(k)?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+            <span style="display:flex;flex-direction:column;gap:2px;font-size:12.5px"><b>${label}</b><span style="color:var(--slate)">${blurb}</span></span>
+            <span class="row" style="gap:8px"><button class="chip" ${A.exp.busy?"disabled":""} onclick="runExport('${k}','csv')">${A.exp.busy===k+"csv"?"Preparing\u2026":"CSV"}</button><button class="chip" ${A.exp.busy?"disabled":""} onclick="runExport('${k}','xlsx')">${A.exp.busy===k+"xlsx"?"Preparing\u2026":"Excel"}</button></span></div>`:"";
+        return `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">Pick an optional date range, then download. Every export is capped at 20,000 rows and written to the audit trail with your name on it.</div>
+        <div class="row" style="gap:10px;margin-bottom:12px;flex-wrap:wrap">
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--slate)">From<input type="date" value="${A.exp.from}" onchange="S.admin.exp.from=this.value"/></label>
+          <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--slate)">To<input type="date" value="${A.exp.to}" onchange="S.admin.exp.to=this.value"/></label>
+        </div>
+        <div class="card">
+          ${row("users","All signups","Every account: username, email, role, KYC, balance, signup and last sign-in")}
+          ${row("ledger","Balance ledger","Every credit and debit with type, reference and market")}
+          ${row("audit","Audit trail","Every admin action, immutable, for accounting audits")}
+          ${row("markets","Markets","Every market with pools, status and outcome")}
+          ${row("calls","Calls","Every call with side, stake and settlement")}
+        </div>`;})() : ""}
       ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
       <div class="card">${A.users.map(u=>`<div onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;cursor:pointer">
           <span style="display:flex;align-items:center;gap:8px">${avatarHtml(null,u.username,24)}<span><b style="color:var(--glow)">${esc(u.username)}</b>${u.is_admin?' <span class="cat" style="color:var(--orange)">ADMIN</span>':""}${u.kyc_status==="pending"?' <span class="cat" style="color:var(--glow)">KYC PENDING</span>':""} <span style="color:var(--slate)">${u.calls} calls · ${u.markets} markets</span></span></span>
@@ -1536,9 +1576,8 @@ function userDetailSheet(){
         ${k!=="rejected" ? `<button class="btn-no" onclick="adminKyc('${esc(u.username)}','rejected')">Reject KYC</button>` : ""}
       </div>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
-        ${u.username!==meAdminName ? (u.is_admin
-            ? `<button class="btn-no" onclick="adminRole('${esc(u.username)}',false)">Remove admin</button>`
-            : `<button class="btn-yes" onclick="adminRole('${esc(u.username)}',true)">Make admin</button>`)
+        ${u.username!==meAdminName ? `<label style="display:flex;align-items:center;gap:8px;font-size:12px;color:var(--slate)">Role
+            <select onchange="adminRoleSet('${esc(u.username)}',this.value)" style="width:auto;padding:8px 10px">${["user","analyst","auditor","accounting","admin"].map(r=>`<option value="${r}" ${(u.role||(u.is_admin?"admin":"user"))===r?"selected":""}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join("")}</select></label>`
           : `<span style="font-size:11.5px;color:var(--slate);padding:4px 2px">You cannot change your own role.</span>`}
         <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust balance</button>
       </div>
@@ -1692,7 +1731,7 @@ window.doProfileSetup = async ()=>{
   const r = await rpc("profile_setup", { p_username: u, p_referral_code: refCode || null, p_phone: "+" + ccode + phone });
   S.busy = false;
   if(r.error){ setMsg(r.error, true); return render(); }
-  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
+  S.profile = { username: r.username, balance: r.balance, isAdmin: !!r.is_admin, role: r.role || (r.is_admin ? "admin" : "user"), referralCode: r.referral_code, kycStatus: r.kyc_status || "not_started", avatarUrl: null };
   setMsg(null); await loadMarkets(); render();
   toast(`Welcome ${r.username}. ${N(r.balance)} demo credits to start. Make your call`);
 };
@@ -1947,6 +1986,79 @@ window.openUserDetail = async (username)=>{
   if(r.error) return toast(r.error);
   S.admin.userDetail = r; render();
 };
+let _usTimer = null;
+window.userSearchType = (v)=>{
+  S.admin.search.q = v; S.admin.search.page = 0;
+  clearTimeout(_usTimer);
+  if(v.trim().length < 2){ S.admin.search.rows = null; renderMain(); return; }
+  _usTimer = setTimeout(userSearchRun, 350);
+};
+window.userSearchRun = async ()=>{
+  const s = S.admin.search;
+  s.busy = true; renderMain();
+  const r = await rpc("admin_search_users", { p_q: s.q, p_limit: 25, p_offset: s.page * 25 });
+  s.busy = false;
+  if(r && r.ok){ s.rows = r.data || []; s.total = r.total || 0; }
+  else { s.rows = []; s.total = 0; if(r && r.error) toast(r.error); }
+  renderMain();
+};
+window.userSearchPage = (d)=>{ S.admin.search.page = Math.max(0, S.admin.search.page + d); userSearchRun(); };
+
+window.adminRoleSet = async (username, role)=>{
+  if(!confirm("Set "+username+"'s role to "+role+"?")) { renderMain(); return; }
+  const r = await rpc("admin_assign_role", { p_username: username, p_role: role });
+  if(r && r.error) return toast(r.error);
+  await loadAdmin();
+  const fresh = await rpc("admin_user_detail", { p_username: username });
+  S.admin.userDetail = fresh && !fresh.error ? fresh : null;
+  render(); toast("Role updated to "+role+". Logged to the audit trail");
+};
+
+function toCsv(rows){
+  if(!rows || !rows.length) return "";
+  const cols = Object.keys(rows[0]);
+  const cell = v => v==null ? "" : /[",\n]/.test(String(v)) ? '"'+String(v).replace(/"/g,'""')+'"' : String(v);
+  return cols.join(",") + "\n" + rows.map(r=>cols.map(c=>cell(r[c])).join(",")).join("\n");
+}
+function downloadBlob(blob, name){
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(()=>{ URL.revokeObjectURL(a.href); a.remove(); }, 800);
+}
+function loadXlsxLib(cb){
+  if(window.XLSX) return cb();
+  const s = document.createElement("script");
+  s.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+  s.onload = cb;
+  s.onerror = ()=>{ const s2=document.createElement("script"); s2.src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"; s2.onload=cb; s2.onerror=()=>toast("Could not load the Excel component. Use CSV instead."); document.head.appendChild(s2); };
+  document.head.appendChild(s);
+}
+window.runExport = async (kind, fmt)=>{
+  const fn = { users:"export_users", ledger:"export_wallet_ledger", audit:"export_audit_log", markets:"export_markets", calls:"export_calls" }[kind];
+  const e = S.admin.exp;
+  e.busy = kind + fmt; renderMain();
+  const r = await rpc(fn, { p_from: e.from || null, p_to: e.to || null });
+  e.busy = "";
+  if(!r || !r.ok){ renderMain(); return toast((r && r.error) || "Export failed"); }
+  const rows = r.data || [];
+  if(!rows.length){ renderMain(); return toast("Nothing in that date range"); }
+  const stamp = new Date().toISOString().slice(0,10);
+  const name = "wanana_" + kind + "_" + stamp;
+  if(fmt === "csv"){
+    downloadBlob(new Blob(["\ufeff" + toCsv(rows)], { type: "text/csv;charset=utf-8" }), name + ".csv");
+    renderMain(); toast(r.rows + " rows downloaded");
+  } else {
+    loadXlsxLib(()=>{
+      const ws = XLSX.utils.json_to_sheet(rows);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, kind);
+      XLSX.writeFile(wb, name + ".xlsx");
+      renderMain(); toast(r.rows + " rows downloaded");
+    });
+  }
+};
+
 window.adminRole = async (username, makeAdmin)=>{
   if(!confirm((makeAdmin?"Make ":"Remove ")+username+(makeAdmin?" an admin?":" as admin?"))) return;
   const r = await rpc("admin_set_role", { p_username: username, p_is_admin: makeAdmin });
