@@ -782,8 +782,12 @@ const EXPORT_SCOPE = {
   ledger:  ["admin","auditor","accounting","analyst"],
   audit:   ["admin","auditor","analyst"],
   markets: ["admin","auditor","analyst","accounting"],
-  calls:   ["admin","auditor","analyst","accounting"]
+  calls:   ["admin","auditor","analyst","accounting"],
+  revenue: ["admin","auditor","analyst","accounting"]
 };
+/* Audit actions store internal names. These are what people read. */
+const ACTION_LABEL = { wallet_adjustment: "balance adjustment" };
+function actionLabel(a){ return ACTION_LABEL[a] || String(a).replace(/_/g," "); }
 const ROLE_BLURB = {
   analyst:    "You can pull every dataset, so a full analysis runs off one set of downloads.",
   auditor:    "You can pull every dataset, including the audit trail.",
@@ -1346,6 +1350,7 @@ const views = {
           ${row("audit","Audit trail","Every admin action, immutable, for accounting audits")}
           ${row("markets","Markets","Every market with pools, status and outcome")}
           ${row("calls","Calls","Every call with side, stake and settlement")}
+          ${row("revenue","Platform revenue","Commission per settled market, split into fee, creator reward and rounding")}
         </div>`;})() : ""}
       ${A.panel==="users" ? `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">${A.users.length} users · ${A.users.reduce((s,u)=>s+u.calls,0)} calls · ${A.users.reduce((s,u)=>s+u.markets,0)} markets · ${A.users.filter(u=>u.kyc_status==="pending").length} KYC pending</div>
       <div class="card">${A.users.map(u=>`<div onclick="openUserDetail('${esc(u.username)}')" role="button" tabindex="0" style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--line);font-size:12.5px;flex-wrap:wrap;cursor:pointer">
@@ -1375,10 +1380,10 @@ const views = {
           </div>
         </div>`).join("") || `<div class="empty">Nothing in this queue.</div>`}`;})() : ""}
       ${A.panel==="audit" ? `<select onchange="S.admin.fA=this.value;renderMain()" style="margin-bottom:10px;width:auto">
-        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision","comment_moderation","pinned_update"].map(a=>`<option ${A.fA===a?"selected":""}>${a}</option>`).join("")}
+        ${["all","market_approved","market_rejected","market_closed","market_cancelled","verification_started","outcome_entered","market_settled","wallet_adjustment","dispute_decision","admin_role_change","kyc_decision","comment_moderation","pinned_update","data_export"].map(a=>`<option value="${a}" ${A.fA===a?"selected":""}>${a==="all"?"all":actionLabel(a)}</option>`).join("")}
       </select>
       <div class="card">${A.audit.filter(a=>A.fA==="all"||a.action===A.fA).map(a=>`<div style="padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px">
-          <b style="color:var(--glow)">${esc(a.actor)}</b> ${a.action.replace(/_/g," ")}${a.market_id?` · market #${a.market_id}`:""}${a.target?` · ${esc(a.target)}`:""}
+          <b style="color:var(--glow)">${esc(a.actor)}</b> ${actionLabel(a.action)}${a.market_id?` · market #${a.market_id}`:""}${a.target?` · ${esc(a.target)}`:""}
           <span style="color:var(--slate)"> · ${new Date(a.created_at).toLocaleString()}</span>
         </div>`).join("") || "No admin actions yet."}</div>` : ""}
       ${A.panel==="health" ? (()=>{
@@ -2060,7 +2065,7 @@ function loadXlsxLib(cb){
   document.head.appendChild(s);
 }
 window.runExport = async (kind, fmt)=>{
-  const fn = { users:"export_users", ledger:"export_wallet_ledger", audit:"export_audit_log", markets:"export_markets", calls:"export_calls" }[kind];
+  const fn = { users:"export_users", ledger:"export_wallet_ledger", audit:"export_audit_log", markets:"export_markets", calls:"export_calls", revenue:"export_platform_revenue" }[kind];
   const e = S.admin.exp;
   e.busy = kind + fmt; renderMain();
   const r = await rpc(fn, { p_from: e.from || null, p_to: e.to || null });
