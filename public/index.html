@@ -536,9 +536,10 @@ async function loadLedger(){
   S.ledger = Array.isArray(r) ? r : [];
 }
 async function loadAdmin(){
-  if(!S.profile || S.profile.role === "user") return;
+  if(!S.profile || !STAFF_ROLES.includes(S.profile.role)) return;
   if(S.profile.role !== "admin"){
-    if(!["search","exports"].includes(S.admin.panel)) S.admin.panel = "search";
+    const ok = (EXPORT_SCOPE.users||[]).includes(S.profile.role) ? ["search","exports"] : ["exports"];
+    if(!ok.includes(S.admin.panel)) S.admin.panel = "exports";
     return;
   }
   const [m, d, l, u, c, a, rc, cr, hh] = await Promise.all([
@@ -772,6 +773,23 @@ function marketCard(m, interactive=true){
 }
 
 const NAV_ITEMS = [["home","Markets"],["insights","Insights"],["create","Create"],["calls","Your calls"],["wallet","Balance"]];
+/* Roles that can open the Data tab. Only admin sees the marketplace controls. */
+const STAFF_ROLES = ["analyst","auditor","accounting","admin"];
+/* What each dataset is scoped to. The database enforces the same list, this only
+   keeps the screen honest about what a role can and cannot pull. */
+const EXPORT_SCOPE = {
+  users:   ["admin","auditor","accounting","analyst"],
+  ledger:  ["admin","auditor","accounting","analyst"],
+  audit:   ["admin","auditor","analyst"],
+  markets: ["admin","auditor","analyst","accounting"],
+  calls:   ["admin","auditor","analyst","accounting"]
+};
+const ROLE_BLURB = {
+  analyst:    "You can pull every dataset, so a full analysis runs off one set of downloads.",
+  auditor:    "You can pull every dataset, including the audit trail.",
+  accounting: "You can pull signups, the balance ledger, markets and calls. The audit trail is outside an accounting role's reach.",
+  admin:      "You can pull every dataset."
+};
 function navItems(){
   const rr = S.profile && S.profile.role;
   if(!rr || rr === "user") return NAV_ITEMS;
@@ -1226,7 +1244,8 @@ const views = {
   admin(){
     const A = S.admin;
     const myRole = (S.profile && S.profile.role) || "user";
-    if(myRole !== "admin" && !["search","exports"].includes(A.panel)) A.panel = "search";
+    const staffPanels = (EXPORT_SCOPE.users||[]).includes(myRole) ? ["search","exports"] : ["exports"];
+    if(myRole !== "admin" && !staffPanels.includes(A.panel)) A.panel = "exports";
     const seg = (k,l)=>`<button class="chip ${A.panel===k?"on":""}" onclick="S.admin.panel='${k}';renderMain()">${l}</button>`;
     const badge = s=>({pending_review:"var(--orange)",live:"var(--teal)",closed:"var(--slate)",
       in_verification:"var(--glow)",dispute_window:"var(--coral)"}[s]||"var(--slate)");
@@ -1261,9 +1280,11 @@ const views = {
       </div>`;
     };
     return `<div class="pad">
-      <h2 class="tabtitle">Admin</h2>
-      <p class="sub">Marketplace controls. Every action here is written to the audit log.</p>
-      <div class="chips" style="padding-left:0">${myRole==="admin" ? seg("markets","Markets")+seg("disputes",`Disputes (${A.disputes.length})`)+seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)+seg("ledger","Ledger")+seg("users","Users")+seg("comments","Comments")+seg("audit","Audit log")+seg("health","Health") : ""}${seg("search","\u{1F50D} Find a user")}${seg("exports","\u2B07\uFE0F Exports")}</div>
+      <h2 class="tabtitle">${myRole==="admin" ? "Admin" : "Data"}</h2>
+      <p class="sub">${myRole==="admin"
+        ? "Marketplace controls. Every action here is written to the audit log."
+        : `Pull the records your role covers, in Excel or CSV. ${ROLE_BLURB[myRole]||""} Every download is written to the audit log with your name on it.`}</p>
+      <div class="chips" style="padding-left:0">${myRole==="admin" ? seg("markets","Markets")+seg("disputes",`Disputes (${A.disputes.length})`)+seg("cancelreqs",`Cancel requests (${A.cancelReqs.length})`)+seg("ledger","Ledger")+seg("users","Users")+seg("comments","Comments")+seg("audit","Audit log")+seg("health","Health") : ""}${(EXPORT_SCOPE.users||[]).includes(myRole) ? seg("search","\u{1F50D} Find a user") : ""}${seg("exports","\u2B07\uFE0F Exports")}</div>
       ${A.panel==="markets" ? `
         <div class="chips" style="padding-left:0">
           ${["all","pending_review","live","closed","in_verification","dispute_window","rejected"].map(s=>`<button class="chip ${A.fS===s?"on":""}" onclick="S.admin.fS='${s}';renderMain()">${s==="all"?"All":s==="dispute_window"?"Settlement queue":s.replace(/_/g," ")}</button>`).join("")}
@@ -1308,11 +1329,13 @@ const views = {
           </div>`).join("")}</div>
         ${A.search.total>25?`<div class="row" style="margin-top:10px"><button class="chip" ${A.search.page===0?"disabled":""} onclick="userSearchPage(-1)">\u2039 Previous</button><button class="chip" ${(A.search.page+1)*25>=A.search.total?"disabled":""} onclick="userSearchPage(1)">Next \u203A</button></div>`:""}`}` : ""}
       ${A.panel==="exports" ? (()=>{
-        const can = k=>({users:["admin","auditor","accounting"],ledger:["admin","auditor","accounting"],audit:["admin","auditor"],markets:["admin","auditor","analyst","accounting"],calls:["admin","auditor","analyst","accounting"]}[k]||[]).includes(myRole);
-        const row = (k,label,blurb)=>can(k)?`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);flex-wrap:wrap">
+        const can = k=>(EXPORT_SCOPE[k]||[]).includes(myRole);
+        const row = (k,label,blurb)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);flex-wrap:wrap;${can(k)?"":"opacity:.45"}">
             <span style="display:flex;flex-direction:column;gap:2px;font-size:12.5px"><b>${label}</b><span style="color:var(--slate)">${blurb}</span></span>
-            <span class="row" style="gap:8px"><button class="chip" ${A.exp.busy?"disabled":""} onclick="runExport('${k}','csv')">${A.exp.busy===k+"csv"?"Preparing\u2026":"CSV"}</button><button class="chip" ${A.exp.busy?"disabled":""} onclick="runExport('${k}','xlsx')">${A.exp.busy===k+"xlsx"?"Preparing\u2026":"Excel"}</button></span></div>`:"";
-        return `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">Pick an optional date range, then download. Every export is capped at 20,000 rows and written to the audit trail with your name on it.</div>
+            ${can(k)
+              ? `<span class="row" style="gap:8px"><button class="chip" ${A.exp.busy?"disabled":""} onclick="runExport('${k}','csv')">${A.exp.busy===k+"csv"?"Preparing\u2026":"CSV"}</button><button class="chip" ${A.exp.busy?"disabled":""} onclick="runExport('${k}','xlsx')">${A.exp.busy===k+"xlsx"?"Preparing\u2026":"Excel"}</button></span>`
+              : `<span style="font-size:11.5px;color:var(--slate);white-space:nowrap">Not open to your role</span>`}</div>`;
+        return `<div style="font-size:12.5px;color:var(--slate);margin-bottom:10px">Signed in as <b style="color:var(--glow)">${esc(myRole)}</b>. Pick an optional date range, then download. Every export is capped at 20,000 rows and written to the audit trail with your name on it.</div>
         <div class="row" style="gap:10px;margin-bottom:12px;flex-wrap:wrap">
           <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--slate)">From<input type="date" value="${A.exp.from}" onchange="S.admin.exp.from=this.value"/></label>
           <label style="display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--slate)">To<input type="date" value="${A.exp.to}" onchange="S.admin.exp.to=this.value"/></label>
@@ -1570,6 +1593,7 @@ function userDetailSheet(){
         </div>
       </div>
 
+      ${((S.profile && S.profile.role) === "admin") ? `
       <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:4px 0 8px">Admin actions</div>
       <div class="row" style="flex-wrap:wrap;gap:8px;margin-bottom:6px">
         ${k==="pending"||k==="not_started" ? `<button class="btn-yes" onclick="adminKyc('${esc(u.username)}','verified')">Verify KYC</button>` : ""}
@@ -1580,7 +1604,8 @@ function userDetailSheet(){
             <select onchange="adminRoleSet('${esc(u.username)}',this.value)" style="width:auto;padding:8px 10px">${["user","analyst","auditor","accounting","admin"].map(r=>`<option value="${r}" ${(u.role||(u.is_admin?"admin":"user"))===r?"selected":""}>${r.charAt(0).toUpperCase()+r.slice(1)}</option>`).join("")}</select></label>`
           : `<span style="font-size:11.5px;color:var(--slate);padding:4px 2px">You cannot change your own role.</span>`}
         <button class="chip" onclick="adminAdjust('${esc(u.username)}')">Adjust balance</button>
-      </div>
+      </div>` : `
+      <div style="font-size:11.5px;color:var(--slate);margin:4px 0 8px">Read only. Changing a record is an admin action.</div>`}
 
       <div style="font-family:var(--disp);font-weight:600;font-size:13px;margin:16px 0 8px">Recent calls</div>
       ${(u.calls&&u.calls.length) ? u.calls.map(c=>`<div style="display:flex;justify-content:space-between;gap:8px;padding:7px 0;border-bottom:1px solid var(--line);font-size:12px">
@@ -1780,7 +1805,7 @@ window.addEventListener("popstate", async ()=>{
   else { S.detail = null; if(r.tab === "home") S.cat = r.cat || "All"; await go(r.tab, true); }
 });
 window.go = async (t, fromPop)=>{ S.tab=t; S.detail=null; S.trade=null; if(t!=="create") S.editMarket=null;
-  if(t==="admin" && !(S.profile && S.profile.isAdmin)) S.tab = t = "home";
+  if(t==="admin" && !STAFF_ROLES.includes((S.profile && S.profile.role) || "user")) S.tab = t = "home";
   if(!fromPop) syncUrl();
   if(t==="home") await loadMarkets();
   if(t==="calls"||t==="insights") await refreshCalls();
